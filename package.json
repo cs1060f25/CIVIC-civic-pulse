@@ -1,9 +1,0 @@
-{
-  "name": "civic-pulse",
-  "version": "1.0.0",
-  "description": "CivicPulse platform for community feedback",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'Static site - no build needed'"
-  }
-}

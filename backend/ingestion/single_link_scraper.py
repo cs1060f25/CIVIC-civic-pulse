@@ -29,12 +29,48 @@ def is_allowed_domain(host: str, allowed_domains: list) -> bool:
         
     Returns:
         True if host matches or is a subdomain of any allowed domain
+        
+    Security Note:
+        Validates proper domain structure to prevent security bypasses.
+        - Only allows subdomains, not arbitrary suffixes
+        - Validates domain format (rejects malformed domains)
+        - Ensures base domain has proper structure (at least 2 parts for TLD)
     """
     host = host.lower()
+    
+    # Quick validation: reject empty or malformed domains
+    if not host or not host.replace(".", "").replace("-", "").isalnum():
+        return False
+    
+    # Validate base domain structure - must have at least 2 parts (name + TLD)
     for allowed in allowed_domains:
         allowed = allowed.lower()
-        if host == allowed or host.endswith("." + allowed):
+        allowed_parts = allowed.split(".")
+        
+        # Security: Reject if allowed domain is a bare TLD (e.g., "gov")
+        # This prevents "evil.gov" from matching when allowed_domains = ["gov"]
+        if len(allowed_parts) < 2:
+            continue  # Skip invalid allowed domain
+        
+        # Exact match
+        if host == allowed:
             return True
+        
+        # For subdomain matches, verify proper domain structure
+        if host.endswith("." + allowed):
+            host_parts = host.split(".")
+            
+            # Host must have more parts than allowed domain to be a valid subdomain
+            # Example: www.wichita.gov (3 parts) > wichita.gov (2 parts) ✓
+            if len(host_parts) > len(allowed_parts):
+                # Additional security: ensure the subdomain part exists and is valid
+                # Extract the subdomain part (everything before the base domain)
+                subdomain = ".".join(host_parts[:-len(allowed_parts)])
+                
+                # Subdomain should be non-empty and contain valid characters
+                if subdomain and all(part and part.replace("-", "").isalnum() for part in subdomain.split(".")):
+                    return True
+    
     return False
 
 
@@ -60,18 +96,20 @@ def is_pdf_content(content_type: str, content_bytes: bytes) -> bool:
     return False
 
 
-def download_url(url: str, timeout: int = 20) -> tuple:
+def download_url(url: str, timeout: int = 20, max_size: int = 100 * 1024 * 1024) -> tuple:
     """
-    Download content from a URL.
+    Download content from a URL with size limit protection.
     
     Args:
         url: URL to download
         timeout: Timeout in seconds
+        max_size: Maximum allowed file size in bytes (default 100MB)
         
     Returns:
         Tuple of (bytes, content_type_header_value)
         
     Raises:
+        ValueError: If file size exceeds max_size
         Exception on network or download errors
     """
     req = Request(url)
@@ -79,7 +117,30 @@ def download_url(url: str, timeout: int = 20) -> tuple:
     
     with urlopen(req, timeout=timeout) as response:
         content_type = response.headers.get("Content-Type", "")
-        content_bytes = response.read()
+        
+        # Read content in chunks to avoid memory exhaustion and enforce size limits
+        chunks = []
+        total_size = 0
+        chunk_size = 8192  # 8KB chunks
+        
+        while True:
+            chunk = response.read(chunk_size)
+            if not chunk:
+                break
+            
+            total_size += len(chunk)
+            
+            # Check size limit before accumulating to prevent DoS
+            if total_size > max_size:
+                raise ValueError(
+                    f"File size ({total_size} bytes) exceeds maximum allowed size ({max_size} bytes). "
+                    f"This may be a denial-of-service attempt."
+                )
+            
+            chunks.append(chunk)
+        
+        # Combine all chunks into single byte string
+        content_bytes = b"".join(chunks)
         
     return content_bytes, content_type
 

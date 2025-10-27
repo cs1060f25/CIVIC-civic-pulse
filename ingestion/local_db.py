@@ -3,6 +3,7 @@ Local SQLite database utility for document storage and duplicate prevention.
 """
 
 import hashlib
+import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -15,7 +16,8 @@ DEFAULT_DB_PATH = "data/civicpulse.db"
 def get_db_path(db_path: str = None) -> Path:
     """Get the database path and ensure the directory exists."""
     if db_path is None:
-        db_path = DEFAULT_DB_PATH
+        # Check environment variable first
+        db_path = os.environ.get("CIVICPULSE_DB", DEFAULT_DB_PATH)
     
     db_file = Path(db_path)
     db_file.parent.mkdir(parents=True, exist_ok=True)

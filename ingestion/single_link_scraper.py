@@ -127,7 +127,7 @@ def scrape_single_link(config_path: str, source_id: str, url: str,
         
         # Check if PDF
         if not is_pdf_content(content_type, content_bytes):
-            result["reason"] = "not a PDF"
+            result["reason"] = f"Content-Type '{content_type}' is not a PDF"
             return result
         
         # Store in database

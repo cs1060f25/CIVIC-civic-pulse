@@ -3,11 +3,9 @@ Basic pytest suite for ingestion features.
 """
 
 import json
-import os
-import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -172,6 +170,7 @@ def test_single_link_scraper_rejects_non_pdf(tmp_path, monkeypatch):
     )
     
     assert result["status"] == "error"
+    assert "content-type" in result["reason"].lower() or "content type" in result["reason"].lower()
     assert "not a pdf" in result["reason"].lower()
 
 

@@ -10,7 +10,8 @@ for root, dirs, files in os.walk(pdf_dir):
     for file in files:
         with pymupdf.open(os.path.join(root, file)) as doc:  # open document
             text = chr(12).join([page.get_text("text", sort=True) for page in doc])
-        
+            text = "\n".join(line.lstrip() for line in text.splitlines())
+
         # print(text)
         
         # write as a binary file to support non-ASCII characters

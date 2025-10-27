@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "start_urls",
+    "frequency",
+    "allowed_domains",
+    "expected_formats",
+    "follow_links",
+    "date_selection",
+    "selectors",
+    "naming",
+    "flags"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "start_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "frequency": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "cron": {
+              "type": "string"
+            }
+          },
+          "required": ["cron"]
+        },
+        {
+          "properties": {
+            "rrule": {
+              "type": "string"
+            }
+          },
+          "required": ["rrule"]
+        }
+      ]
+    },
+    "allowed_domains": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "expected_formats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["pdf", "html", "csv", "json", "doc", "docx"]
+      }
+    },
+    "follow_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["within_domains", "max_depth"],
+      "properties": {
+        "within_domains": {
+          "type": "boolean"
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "date_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "offset_days", "match_format"],
+      "properties": {
+        "basis": {
+          "type": "string",
+          "enum": ["nearest_tuesday"]
+        },
+        "offset_days": {
+          "type": "integer"
+        },
+        "match_format": {
+          "type": "string"
+        }
+      }
+    },
+    "selectors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["listing_page", "link_selector", "pdf_selector", "link_text_regex"],
+      "properties": {
+        "listing_page": {
+          "type": "string"
+        },
+        "link_selector": {
+          "type": "string"
+        },
+        "pdf_selector": {
+          "type": "string"
+        },
+        "link_text_regex": {
+          "type": "string"
+        }
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename_template"],
+      "properties": {
+        "filename_template": {
+          "type": "string"
+        }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["auth_required", "robots_respect"],
+      "properties": {
+        "auth_required": {
+          "type": "boolean"
+        },
+        "robots_respect": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
+

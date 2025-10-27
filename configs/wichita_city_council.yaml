@@ -1,0 +1,40 @@
+id: "wichita_city_council"
+
+start_urls:
+  - "https://www.wichita.gov/AgendaCenter"
+
+# Recheck weekly every Tuesday at 09:00 local time
+frequency:
+  cron: "0 9 * * 2"
+
+allowed_domains:
+  - "wichita.gov"
+
+expected_formats:
+  - "pdf"
+
+follow_links:
+  within_domains: true
+  max_depth: 2
+
+# Take Tuesday's date and subtract two weeks to pick the meeting
+date_selection:
+  basis: "nearest_tuesday"
+  offset_days: -14
+  match_format: "MMMM d, yyyy"   # Example: "October 14, 2025"
+
+selectors:
+  listing_page: "https://www.wichita.gov/AgendaCenter"
+  link_selector: "a.accordion-panel, a.accordion-panel * a, a[href*='Agenda']"
+  pdf_selector: "a[href$='.pdf']"
+  # Interpolate the formatted target date into this regex at runtime.
+  # Example after interpolation: "October 14, 2025"
+  link_text_regex: "{{TARGET_DATE}}"
+
+naming:
+  filename_template: "{source_id}/{date}_{orig_name}"
+
+flags:
+  auth_required: false
+  robots_respect: true
+

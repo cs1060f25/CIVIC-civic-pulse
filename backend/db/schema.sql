@@ -1,9 +1,9 @@
--- SQLite schema for local ingestion database
--- This file initializes the local ingestion database for document storage
+-- SQLite schema for CivicPulse document storage
+-- This file initializes the database for document storage with rich metadata
 -- and duplicate prevention based on content hashes.
 --
 -- Usage:
---   sqlite3 ingestion.db < schema.sql
+--   sqlite3 civicpulse.db < schema.sql
 
 -- Documents table stores scraped files with metadata for tracking and deduplication
 CREATE TABLE IF NOT EXISTS documents (
@@ -31,3 +31,47 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash 
     ON documents(content_hash);
 
+-- Extended metadata table for rich document information
+CREATE TABLE IF NOT EXISTS document_metadata (
+    document_id TEXT PRIMARY KEY,
+    
+    -- Display information
+    title TEXT NOT NULL,
+    entity TEXT NOT NULL,                -- e.g., "Johnson County Planning Board"
+    jurisdiction TEXT NOT NULL,          -- e.g., "Johnson County, KS"
+    
+    -- Geographic data (JSON array of strings)
+    counties TEXT NOT NULL DEFAULT '[]', -- e.g., '["Johnson", "Sedgwick"]'
+    
+    -- Temporal data
+    meeting_date TEXT,                   -- ISO 8601 date (nullable if unknown)
+    
+    -- Classification (JSON arrays)
+    doc_types TEXT NOT NULL DEFAULT '[]',     -- e.g., '["Agenda", "Minutes"]'
+    topics TEXT NOT NULL DEFAULT '[]',        -- e.g., '["zoning", "solar"]'
+    
+    -- Impact and stage
+    impact TEXT NOT NULL DEFAULT 'Low',       -- "Low" | "Medium" | "High"
+    stage TEXT,                               -- "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft"
+    
+    -- Search relevance (JSON object)
+    keyword_hits TEXT DEFAULT '{}',           -- e.g., '{"solar zoning": 3, "setback": 2}'
+    
+    -- Preview data (JSON arrays)
+    extracted_text TEXT DEFAULT '[]',         -- Sample paragraphs from document
+    pdf_preview TEXT DEFAULT '[]',            -- Page preview snippets
+    
+    -- Attachments (JSON array of objects)
+    attachments TEXT DEFAULT '[]',            -- e.g., '[{"id":"a1","title":"Agenda","type":"Agenda","pageCount":15}]'
+    
+    -- Timestamps
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_metadata_meeting_date ON document_metadata(meeting_date);
+CREATE INDEX IF NOT EXISTS idx_metadata_impact ON document_metadata(impact);
+CREATE INDEX IF NOT EXISTS idx_metadata_entity ON document_metadata(entity);
+CREATE INDEX IF NOT EXISTS idx_metadata_jurisdiction ON document_metadata(jurisdiction);

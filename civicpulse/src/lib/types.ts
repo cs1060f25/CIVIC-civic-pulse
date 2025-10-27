@@ -56,3 +56,40 @@ export interface AppState {
   followedItemIds: string[];
   briefItemIds: string[];
 }
+
+// API Response Types
+export interface GetDocumentsResponse {
+  documents: FeedItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+export interface CreateDocumentRequest {
+  sourceId: string;
+  fileUrl: string;
+  contentHash: string;
+  bytesSize: number;
+  title: string;
+  entity: string;
+  jurisdiction: string;
+  counties?: string[];
+  meetingDate?: string;
+  docTypes?: string[];
+  impact?: ImpactLevel;
+  stage?: "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft";
+  topics?: string[];
+  keywordHits?: KeywordHits;
+  extractedText?: string[];
+  pdfPreview?: string[];
+  attachments?: Attachment[];
+}
+
+export interface ApiError {
+  error: string;
+  message: string;
+  fields?: Record<string, string>;
+}

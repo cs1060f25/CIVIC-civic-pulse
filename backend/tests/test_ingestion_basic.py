@@ -26,15 +26,29 @@ class MockResponse:
         for key, value in headers.items():
             self._headers[key.lower()] = value
         self.headers = self
+        self._position = 0  # Track position for chunked reading
     
     def __enter__(self):
+        self._position = 0  # Reset position for each context manager entry
         return self
     
     def __exit__(self, *args):
         return None
     
-    def read(self):
-        return self.content_bytes
+    def read(self, size=-1):
+        """Support both full and chunked reading."""
+        if size == -1 or size is None:
+            # Return all remaining data
+            result = self.content_bytes[self._position:]
+            self._position = len(self.content_bytes)
+            return result
+        else:
+            # Return chunk
+            start = self._position
+            end = min(self._position + size, len(self.content_bytes))
+            result = self.content_bytes[start:end]
+            self._position = end
+            return result
     
     def get(self, key, default=None):
         return self._headers.get(key.lower(), default)

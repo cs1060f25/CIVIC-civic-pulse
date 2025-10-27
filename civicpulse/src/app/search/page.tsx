@@ -30,7 +30,7 @@ export default function SearchPage() {
     return MOCK_FEED.filter((item) => {
       const matchesDoc = item.docTypes.some((d) => selectedDocTypes.includes(d));
       const matchesCounty = item.counties.some((c) => counties.includes(c));
-      const withinDays = Date.now() - new Date(item.meetingDate).getTime() <= days * 86400000;
+      const withinDays = item.meetingDate ? Date.now() - new Date(item.meetingDate).getTime() <= days * 86400000 : false;
       const hay = `${item.title} ${item.entity} ${item.jurisdiction} ${item.topics.join(" ")}`.toLowerCase();
       const matchesQuery = tokens.length === 0 || tokens.every((t) => hay.includes(t));
       return matchesDoc && matchesCounty && withinDays && matchesQuery;
@@ -137,7 +137,9 @@ export default function SearchPage() {
                   <div className="text-xs muted">{item.jurisdiction}</div>
                 </div>
                 <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis">{item.docTypes.join(", ")}</div>
-                <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap">{new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
+                <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap">
+                  {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                </div>
                 <div className="col-span-1 px-4 py-4">
                   <ImpactBadge level={item.impact} />
                 </div>

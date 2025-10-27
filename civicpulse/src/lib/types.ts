@@ -14,21 +14,32 @@ export interface KeywordHits {
 }
 
 export interface FeedItem {
+  // Core fields (from documents table)
   id: string;
-  entity: string; // e.g., Johnson County Planning Board
+  sourceId: string;
+  fileUrl: string;
+  contentHash: string;
+  bytesSize: number;
+  createdAt: string; // ISO 8601
+  
+  // Metadata (from document_metadata table)
   title: string;
-  meetingDate: string; // ISO date
-  attachments: Attachment[];
+  entity: string; // e.g., Johnson County Planning Board
   jurisdiction: string; // e.g., Johnson County, KS
   counties: string[]; // normalized geography
-  hits: KeywordHits;
+  meetingDate: string | null; // ISO 8601 date (nullable if unknown)
+  docTypes: DocumentType[];
   impact: ImpactLevel;
   stage?: "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft";
-  updatedAt: string; // ISO
-  docTypes: DocumentType[];
   topics: string[]; // normalized taxonomy tags
+  
+  // Search/preview data
+  hits: KeywordHits;
   extractedText?: string[]; // mock paragraphs of extracted text
   pdfPreview?: string[]; // mock "pages" textual preview
+  attachments: Attachment[];
+  
+  updatedAt: string; // ISO 8601
 }
 
 export interface UserPreferences {

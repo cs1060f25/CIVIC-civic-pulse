@@ -29,12 +29,48 @@ def is_allowed_domain(host: str, allowed_domains: list) -> bool:
         
     Returns:
         True if host matches or is a subdomain of any allowed domain
+        
+    Security Note:
+        Validates proper domain structure to prevent security bypasses.
+        - Only allows subdomains, not arbitrary suffixes
+        - Validates domain format (rejects malformed domains)
+        - Ensures base domain has proper structure (at least 2 parts for TLD)
     """
     host = host.lower()
+    
+    # Quick validation: reject empty or malformed domains
+    if not host or not host.replace(".", "").replace("-", "").isalnum():
+        return False
+    
+    # Validate base domain structure - must have at least 2 parts (name + TLD)
     for allowed in allowed_domains:
         allowed = allowed.lower()
-        if host == allowed or host.endswith("." + allowed):
+        allowed_parts = allowed.split(".")
+        
+        # Security: Reject if allowed domain is a bare TLD (e.g., "gov")
+        # This prevents "evil.gov" from matching when allowed_domains = ["gov"]
+        if len(allowed_parts) < 2:
+            continue  # Skip invalid allowed domain
+        
+        # Exact match
+        if host == allowed:
             return True
+        
+        # For subdomain matches, verify proper domain structure
+        if host.endswith("." + allowed):
+            host_parts = host.split(".")
+            
+            # Host must have more parts than allowed domain to be a valid subdomain
+            # Example: www.wichita.gov (3 parts) > wichita.gov (2 parts) ✓
+            if len(host_parts) > len(allowed_parts):
+                # Additional security: ensure the subdomain part exists and is valid
+                # Extract the subdomain part (everything before the base domain)
+                subdomain = ".".join(host_parts[:-len(allowed_parts)])
+                
+                # Subdomain should be non-empty and contain valid characters
+                if subdomain and all(part and part.replace("-", "").isalnum() for part in subdomain.split(".")):
+                    return True
+    
     return False
 
 

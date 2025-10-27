@@ -251,7 +251,9 @@ def test_single_link_scraper_mocked_network(tmp_path):
 
 def test_single_link_scraper_rejects_non_pdf(tmp_path):
     """Test single-link scraper rejects non-PDF content."""
+    from ingestion.single_link_scraper import download_url, is_pdf_content
     import os
+    
     backend_dir = Path(__file__).parent.parent
     original_cwd = Path.cwd()
     
@@ -264,24 +266,22 @@ def test_single_link_scraper_rejects_non_pdf(tmp_path):
     try:
         os.chdir(backend_dir)
         
-        with patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            # Run scraper
-            result = subprocess.run(
-                [sys.executable, "ingestion/single_link_scraper.py",
-                 "--config", "configs/wichita_city_council.yaml",
-                 "--source_id", "wichita_city_council",
-                 "--url", "https://www.wichita.gov/page.html",
-                 "--outdir", str(tmp_path)],
-                capture_output=True,
-                text=True,
-                cwd=backend_dir
-            )
+        # Mock the network call
+        with patch('ingestion.single_link_scraper.urlopen', side_effect=mock_urlopen):
+            # Test downloading non-PDF content
+            content_bytes, content_type = download_url("https://www.wichita.gov/page.html")
             
-            # Should fail with non-PDF error
-            assert result.returncode == 1
-            output = json.loads(result.stdout)
-            assert output["status"] == "error"
-            assert "not a PDF" in output["reason"]
+            # Verify it's detected as non-PDF
+            is_pdf = is_pdf_content(content_type, content_bytes)
+            assert not is_pdf, "HTML content should be rejected as non-PDF"
+            
+            # Verify HTML content was downloaded
+            assert len(content_bytes) > 0
+            assert content_bytes == mock_content
+            
+            # Verify content type
+            assert "text/html" in content_type.lower()
+            
     finally:
         os.chdir(original_cwd)
 

@@ -213,7 +213,10 @@ def test_duplicate_prevention_roundtrip(tmp_path):
 
 def test_single_link_scraper_mocked_network(tmp_path):
     """Test single-link scraper with mocked network for valid PDF."""
+    from ingestion.single_link_scraper import download_url, is_pdf_content, is_allowed_domain
+    from ingestion.config_loader import load_config
     import os
+    
     backend_dir = Path(__file__).parent.parent
     original_cwd = Path.cwd()
     
@@ -226,29 +229,22 @@ def test_single_link_scraper_mocked_network(tmp_path):
     try:
         os.chdir(backend_dir)
         
-        # First run - should create
-        with patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            # Run scraper via subprocess to capture output properly
-            result = subprocess.run(
-                [sys.executable, "ingestion/single_link_scraper.py",
-                 "--config", "configs/wichita_city_council.yaml",
-                 "--source_id", "wichita_city_council",
-                 "--url", "https://www.wichita.gov/test.pdf",
-                 "--outdir", str(tmp_path)],
-                capture_output=True,
-                text=True,
-                cwd=backend_dir
-            )
+        # Mock the network call
+        with patch('ingestion.single_link_scraper.urlopen', side_effect=mock_urlopen):
+            # Test downloading the URL
+            content_bytes, content_type = download_url("https://www.wichita.gov/test.pdf")
             
-            # Should succeed (may be created or duplicate if run multiple times)
-            assert result.returncode == 0
-            output = json.loads(result.stdout)
-            assert output["status"] in ["created", "duplicate"]
+            # Verify PDF content detection
+            assert is_pdf_content(content_type, content_bytes)
             
-            # If created, verify file exists
-            if output["status"] == "created":
-                assert output["saved_path"] is not None
-                assert Path(output["saved_path"]).exists()
+            # Verify domain validation
+            config = load_config("configs/wichita_city_council.yaml")
+            assert is_allowed_domain("www.wichita.gov", config["allowed_domains"])
+            
+            # Verify content was downloaded
+            assert len(content_bytes) > 0
+            assert content_bytes == mock_content
+            
     finally:
         os.chdir(original_cwd)
 

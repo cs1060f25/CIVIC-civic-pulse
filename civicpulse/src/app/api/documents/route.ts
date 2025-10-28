@@ -255,7 +255,8 @@ export async function POST(request: NextRequest) {
     const db = getDb();
     
     // Check for duplicate content_hash
-    const existing = db.prepare("SELECT id FROM documents WHERE content_hash = ?").get(body.contentHash) as { id: string } | undefined;
+    const duplicateStmt = db.prepare("SELECT id FROM documents WHERE content_hash = ?");
+    const existing = duplicateStmt.get(body.contentHash) as { id: string } | undefined;
     
     if (existing) {
       return NextResponse.json(
@@ -276,10 +277,11 @@ export async function POST(request: NextRequest) {
     // Start transaction
     const insert = db.transaction(() => {
       // Insert into documents table
-      db.prepare(`
+      const insertDocStmt = db.prepare(`
         INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
+      `);
+      insertDocStmt.run(
         id,
         body.sourceId,
         body.fileUrl,
@@ -289,13 +291,14 @@ export async function POST(request: NextRequest) {
       );
       
       // Insert into document_metadata table
-      db.prepare(`
+      const insertMetaStmt = db.prepare(`
         INSERT INTO document_metadata (
           document_id, title, entity, jurisdiction, counties, meeting_date,
           doc_types, topics, impact, stage, keyword_hits, extracted_text,
           pdf_preview, attachments, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      `);
+      insertMetaStmt.run(
         id,
         body.title,
         body.entity,
@@ -317,7 +320,7 @@ export async function POST(request: NextRequest) {
     insert();
     
     // Fetch and return created document
-    const row = db.prepare(`
+    const selectStmt = db.prepare(`
       SELECT 
         d.id, d.source_id, d.file_url, d.content_hash, d.bytes_size, d.created_at,
         m.title, m.entity, m.jurisdiction, m.counties, m.meeting_date, m.doc_types,
@@ -326,7 +329,8 @@ export async function POST(request: NextRequest) {
       FROM documents d
       JOIN document_metadata m ON d.id = m.document_id
       WHERE d.id = ?
-    `).get(id) as DocumentRow;
+    `);
+    const row = selectStmt.get(id) as DocumentRow;
     
     const document = transformRow(row);
     

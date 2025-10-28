@@ -423,26 +423,22 @@ describe("POST /api/documents", () => {
       };
 
       // Mock duplicate check - no existing document
-      mockDb.prepare.mockReturnValueOnce({
-        get: jest.fn().mockReturnValue(undefined),
-      } as any);
+      const mockGet = jest.fn().mockReturnValue(undefined);
+      const duplicateCheckStmt = { get: mockGet };
+      mockDb.prepare.mockReturnValueOnce(duplicateCheckStmt as any);
 
       // Mock transaction
-      const mockTransaction = jest.fn((cb) => cb());
-      mockDb.transaction.mockReturnValue(mockTransaction);
+      const mockTransaction = jest.fn((cb) => () => cb());
+      mockDb.transaction.mockImplementation(mockTransaction);
 
-      // Mock inserts
-      mockDb.prepare.mockReturnValueOnce({
-        run: jest.fn(),
-      } as any);
-
-      mockDb.prepare.mockReturnValueOnce({
-        run: jest.fn(),
-      } as any);
+      // Mock inserts (inside transaction)
+      const insertDocStmt = { run: jest.fn() };
+      const insertMetaStmt = { run: jest.fn() };
+      mockDb.prepare.mockReturnValueOnce(insertDocStmt as any);
+      mockDb.prepare.mockReturnValueOnce(insertMetaStmt as any);
 
       // Mock fetch of created document
-      mockDb.prepare.mockReturnValueOnce({
-        get: jest.fn().mockReturnValue({
+      const selectStmt = { get: jest.fn().mockReturnValue({
           id: "new-id",
           source_id: "test_source",
           file_url: "https://test.com/doc.pdf",
@@ -463,8 +459,8 @@ describe("POST /api/documents", () => {
           pdf_preview: '["Page 1"]',
           attachments: '[{"id":"a1","title":"Agenda","type":"Agenda"}]',
           updated_at: "2025-10-27T00:00:00Z",
-        }),
-      } as any);
+        }) };
+      mockDb.prepare.mockReturnValueOnce(selectStmt as any);
 
       const request = new NextRequest("http://localhost:3000/api/documents", {
         method: "POST",
@@ -490,23 +486,19 @@ describe("POST /api/documents", () => {
         jurisdiction: "Test County, KS",
       };
 
-      mockDb.prepare.mockReturnValueOnce({
-        get: jest.fn().mockReturnValue(undefined),
-      } as any);
+      const mockGet2 = jest.fn().mockReturnValue(undefined);
+      const duplicateCheckStmt = { get: mockGet2 };
+      mockDb.prepare.mockReturnValueOnce(duplicateCheckStmt as any);
 
-      const mockTransaction = jest.fn((cb) => cb());
-      mockDb.transaction.mockReturnValue(mockTransaction);
+      const mockTransaction = jest.fn((cb) => () => cb());
+      mockDb.transaction.mockImplementation(mockTransaction);
 
-      mockDb.prepare.mockReturnValueOnce({
-        run: jest.fn(),
-      } as any);
+      const insertDocStmt = { run: jest.fn() };
+      const insertMetaStmt = { run: jest.fn() };
+      mockDb.prepare.mockReturnValueOnce(insertDocStmt as any);
+      mockDb.prepare.mockReturnValueOnce(insertMetaStmt as any);
 
-      mockDb.prepare.mockReturnValueOnce({
-        run: jest.fn(),
-      } as any);
-
-      mockDb.prepare.mockReturnValueOnce({
-        get: jest.fn().mockReturnValue({
+      const selectStmt = { get: jest.fn().mockReturnValue({
           id: "new-id",
           source_id: "test_source",
           file_url: "https://test.com/doc.pdf",
@@ -527,8 +519,8 @@ describe("POST /api/documents", () => {
           pdf_preview: "[]",
           attachments: "[]",
           updated_at: "2025-10-27T00:00:00Z",
-        }),
-      } as any);
+        }) };
+      mockDb.prepare.mockReturnValueOnce(selectStmt as any);
 
       const request = new NextRequest("http://localhost:3000/api/documents", {
         method: "POST",
@@ -608,11 +600,10 @@ describe("POST /api/documents", () => {
 
   describe("Duplicate Detection", () => {
     it("should reject duplicate content_hash", async () => {
-      mockDb.prepare.mockReturnValueOnce({
-        get: jest.fn().mockReturnValue({
+      const duplicateCheckStmt = { get: jest.fn().mockReturnValue({
           id: "existing-doc-id",
-        }),
-      } as any);
+        }) };
+      mockDb.prepare.mockReturnValueOnce(duplicateCheckStmt as any);
 
       const duplicateDocument = {
         sourceId: "test",

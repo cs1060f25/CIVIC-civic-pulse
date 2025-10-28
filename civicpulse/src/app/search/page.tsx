@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MOCK_FEED } from "@/lib/mock";
-import type { DocumentType } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { DocumentType, FeedItem } from "@/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAppState } from "@/lib/state";
@@ -12,6 +11,9 @@ const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinan
 export default function SearchPage() {
   const { state, addToBrief } = useAppState();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<FeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -25,17 +27,41 @@ export default function SearchPage() {
     return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
   }
 
-  const results = useMemo(() => {
-    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return MOCK_FEED.filter((item) => {
-      const matchesDoc = item.docTypes.some((d) => selectedDocTypes.includes(d));
-      const matchesCounty = item.counties.some((c) => counties.includes(c));
-      const withinDays = item.meetingDate ? Date.now() - new Date(item.meetingDate).getTime() <= days * 86400000 : false;
-      const hay = `${item.title} ${item.entity} ${item.jurisdiction} ${item.topics.join(" ")}`.toLowerCase();
-      const matchesQuery = tokens.length === 0 || tokens.every((t) => hay.includes(t));
-      return matchesDoc && matchesCounty && withinDays && matchesQuery;
-    });
+  // Fetch documents from API
+  useEffect(() => {
+    async function fetchDocuments() {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const params = new URLSearchParams();
+        if (query) params.append("query", query);
+        if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
+        if (counties.length > 0) params.append("counties", counties.join(","));
+        if (days) params.append("daysBack", days.toString());
+        params.append("limit", "100");
+        
+        const response = await fetch(`/api/documents?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch documents: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      } catch (err) {
+        console.error("Error fetching documents:", err);
+        setError(err instanceof Error ? err.message : "Failed to load documents");
+        setDocuments([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchDocuments();
   }, [query, selectedDocTypes, counties, days]);
+
+  const results = documents;
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -111,7 +137,13 @@ export default function SearchPage() {
               <div className="col-span-1 px-4 py-3">Date</div>
               <div className="col-span-1 px-4 py-3">Impact</div>
             </div>
-            {results.map((item, idx) => (
+            {loading && (
+              <div className="p-6 text-sm muted text-center">Loading documents...</div>
+            )}
+            {error && (
+              <div className="p-6 text-sm text-red-400">Error: {error}</div>
+            )}
+            {!loading && !error && results.map((item, idx) => (
               <div key={item.id} className={`min-w-[1200px] grid grid-cols-12 border-t border-white/10 text-sm leading-7 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
                 <div className="col-span-1 px-4 py-4">
                   <input
@@ -145,7 +177,7 @@ export default function SearchPage() {
                 </div>
               </div>
             ))}
-            {results.length === 0 && (
+            {!loading && !error && results.length === 0 && (
               <div className="p-6 text-sm muted">No results match your filters.</div>
             )}
           </div>

@@ -30,7 +30,9 @@ def init_db(db_path: str = None) -> None:
     Args:
         db_path: Optional path to the database file (defaults to data/civicpulse.db)
     """
-    schema_path = Path("db/schema.sql")
+    # Resolve schema path relative to the backend directory (two levels up from this file)
+    backend_dir = Path(__file__).resolve().parent.parent
+    schema_path = backend_dir / "db" / "schema.sql"
     db_file = get_db_path(db_path)
     
     if not schema_path.exists():
@@ -49,7 +51,7 @@ def init_db(db_path: str = None) -> None:
         conn.close()
 
 
-def save_if_new(source_id: str, file_url: str, content_bytes: bytes) -> dict:
+def save_if_new(source_id: str, file_url: str, content_bytes: bytes, db_path: str = None) -> dict:
     """
     Save a document to the database if it doesn't already exist (based on content hash).
     
@@ -78,7 +80,7 @@ def save_if_new(source_id: str, file_url: str, content_bytes: bytes) -> dict:
     bytes_size = len(content_bytes)
     
     # Try to insert
-    db_file = get_db_path()
+    db_file = get_db_path(db_path)
     conn = sqlite3.connect(str(db_file))
     
     try:

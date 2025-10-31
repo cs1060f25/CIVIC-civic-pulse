@@ -91,6 +91,8 @@ class TestPdfProcessorUnit(unittest.TestCase):
         # Defer import until fakes are installed
         from processing import pdf_processor as pp
         self.pp = pp
+        # Ensure no real image decoding occurs even if real PIL is present
+        self.pp.Image.open = lambda *_args, **_kwargs: SimpleNamespace()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.pdf_dir = Path(self.tmpdir.name) / "pdfs"
         self.out_dir = Path(self.tmpdir.name) / "out"

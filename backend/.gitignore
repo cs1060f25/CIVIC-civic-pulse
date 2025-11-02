@@ -1,5 +1,6 @@
 #testing
 **/*.pdf
+!data/raw notes/Wichita/*.pdf
 **/*.txt
 **/*.json
 

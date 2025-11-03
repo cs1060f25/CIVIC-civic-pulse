@@ -7,10 +7,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add this module's parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
 
-from ingestion.local_db import init_db, save_if_new
+from local_db import init_db, save_if_new, get_backend_path
 
 
 def main():
@@ -23,8 +23,10 @@ def main():
     
     args = parser.parse_args()
     
+    backend_path = get_backend_path()
+    
     # Check if database exists, if not initialize it
-    db_path = Path("data/civicpulse.db")
+    db_path = backend_path / "data" / "civicpulse.db"
     if not db_path.exists():
         print("Database not found. Initializing...")
         init_db()

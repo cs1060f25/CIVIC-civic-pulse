@@ -5,11 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-# Ensure 'backend' directory is on sys.path so 'ingestion' can be imported when run from repo root
+# Add module directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import target module
-from ingestion.local_db import init_db, save_if_new, get_db_path
+from local_db import init_db, save_if_new, get_db_path
 
 
 class TestLocalDB(unittest.TestCase):
@@ -82,7 +82,9 @@ class TestLocalDB(unittest.TestCase):
         self.assertEqual(self._count_documents(), 1)
 
         # Clean up default DB file if it was created
-        default_db = Path("data/civicpulse.db")
+        # From tests/ -> ingestion/ -> src/ -> civicpulse/ -> CIVIC-civic-pulse/ -> backend
+        backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
+        default_db = backend_path / "data" / "civicpulse.db"
         if default_db.exists():
             try:
                 default_db.unlink()
@@ -92,3 +94,4 @@ class TestLocalDB(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

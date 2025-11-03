@@ -11,12 +11,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add this module's parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 # Import existing helpers
-from ingestion.config_loader import load_config
-from ingestion.local_db import init_db, save_if_new
+from config_loader import load_config
+from local_db import init_db, save_if_new
 
 
 def is_allowed_domain(host: str, allowed_domains: list) -> bool:
@@ -141,18 +141,45 @@ def download_url(url: str, timeout: int = 20, max_size: int = 100 * 1024 * 1024)
         
         # Combine all chunks into single byte string
         content_bytes = b"".join(chunks)
-        
+    
     return content_bytes, content_type
+
+
+def get_backend_path() -> Path:
+    """Get the backend directory path relative to this module."""
+    # Try multiple possible locations:
+    # 1. Docker environment: /app/backend (when running in Docker)
+    # 2. Local development: civicpulse/src/ingestion/ -> ../../../backend
+    
+    current_dir = Path(__file__).resolve().parent
+    
+    # Check if we're in Docker (working directory is /app)
+    docker_backend = current_dir.parent / "backend"
+    if docker_backend.exists():
+        return docker_backend
+    
+    # Check if we're in local development (civicpulse/src/ingestion/)
+    local_backend = current_dir.parent.parent.parent / "backend"
+    if local_backend.exists():
+        return local_backend
+    
+    # Fallback: try relative to current working directory
+    cwd_backend = Path.cwd() / "backend"
+    if cwd_backend.exists():
+        return cwd_backend
+    
+    # Last resort: assume we're in /app (Docker)
+    return current_dir.parent / "backend"
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Download and store a single PDF file"
     )
-    parser.add_argument("--config", required=True, help="Path to config YAML")
+    parser.add_argument("--config", required=True, help="Path to config YAML (filename or full path)")
     parser.add_argument("--source_id", required=True, help="Source identifier")
     parser.add_argument("--url", required=True, help="URL to download")
-    parser.add_argument("--outdir", default="data/sandbox", help="Output directory")
+    parser.add_argument("--outdir", default="data/sandbox", help="Output directory (relative to backend)")
     parser.add_argument("--filename", help="Optional filename override")
     
     args = parser.parse_args()
@@ -167,8 +194,10 @@ def main():
     }
     
     try:
+        backend_path = get_backend_path()
+        
         # Initialize database if needed
-        db_path = Path("data/civicpulse.db")
+        db_path = backend_path / "data" / "civicpulse.db"
         if not db_path.exists():
             init_db()
         
@@ -216,8 +245,8 @@ def main():
             timestamp = now.strftime("%Y-%m-%d_%H%M%S")
             timestamped_filename = f"{timestamp}_{filename}"
             
-            # Create output directory
-            outdir = Path(args.outdir) / args.source_id
+            # Create output directory relative to backend
+            outdir = backend_path / args.outdir / args.source_id
             outdir.mkdir(parents=True, exist_ok=True)
             
             # Save file

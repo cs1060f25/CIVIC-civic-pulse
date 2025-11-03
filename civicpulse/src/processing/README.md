@@ -1,6 +1,25 @@
 # Processing Module
 
-This directory contains utilities for extracting text from PDFs (native text or via OCR) and producing per-file text outputs and a summary CSV.
+This module contains utilities for extracting text from PDFs (native text or via OCR) and producing per-file text outputs and a summary CSV.
+
+## Overview
+
+The processing module handles:
+- **Text Extraction**: Extracts embedded text from PDFs
+- **OCR Processing**: Uses Tesseract OCR for scanned documents
+- **Batch Processing**: Processes multiple PDFs in a directory
+- **Summary Generation**: Creates CSV summaries of processed documents
+
+## Module Structure
+
+```
+src/processing/
+├── pdf_processor.py         # Main PDF processing script
+├── tests/                   # Unit tests
+├── requirements.txt         # Python dependencies
+├── Dockerfile               # Docker configuration
+└── README.md               # This file
+```
 
 ## Components
 
@@ -10,7 +29,6 @@ This directory contains utilities for extracting text from PDFs (native text or 
   - Writes a `.txt` file per PDF under `backend/processing/output`.
   - Logs activity to `backend/processing/logs/ocr.log` and writes a summary CSV to `backend/processing/logs/summary.csv`.
   - Counts keyword occurrences if `CIVICPULSE_KEYWORDS` env var is set.
-
 
 ## Prerequisites
 
@@ -40,10 +58,11 @@ These folders are auto-created if missing.
 
 ### 1) Batch process all PDFs in test_files
 
-From the repo root (or any CWD), run the script with Python:
+From the module directory, run the script with Python:
 
-```
-python backend/processing/pdf_processor.py
+```bash
+# From civicpulse/src/processing/
+python pdf_processor.py
 ```
 
 Behavior:
@@ -70,8 +89,44 @@ Behavior:
 - Keywords not counted:
   - Set `CIVICPULSE_KEYWORDS` before running, e.g., `export CIVICPULSE_KEYWORDS="agenda,minutes"`.
 
+## Docker Deployment
+
+### Build Docker Image
+
+```bash
+docker build -t civicpulse-processing .
+```
+
+### Run Container
+
+```bash
+docker run -e CIVICPULSE_KEYWORDS="agenda,minutes,budget" \
+  -v ../../backend/processing:/app/backend/processing \
+  -v ../../backend/data:/app/backend/data \
+  -v ../../backend/db:/app/backend/db:ro \
+  civicpulse-processing
+```
+
+Or use Docker Compose (see `../../docker-compose.yml`).
+
+## Testing
+
+### Run Unit Tests
+
+```bash
+# Install pytest
+pip install pytest
+
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_pdf_processor_unit.py
+```
+
 ## Extending
 
 - Adjust rasterization scale or Tesseract options to tune OCR speed/accuracy.
 - Add language packs for Tesseract (e.g., `brew install tesseract-lang`).
 - Consider chunked JSON outputs or database writes for large batch runs.
+

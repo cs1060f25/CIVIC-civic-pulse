@@ -6,6 +6,13 @@ import pytesseract
 base_dir = pathlib.Path(__file__).resolve().parent
 
 
+def get_backend_path() -> pathlib.Path:
+    """Get the backend directory path relative to this module."""
+    # This file is in civicpulse/src/processing/
+    # Backend is at ../../../backend (up to civicpulse, then up to CIVIC-civic-pulse, then to backend)
+    return pathlib.Path(__file__).resolve().parent.parent.parent.parent / "backend"
+
+
 def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list[str]) -> list[dict]:
     log_dir = output_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -107,9 +114,10 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
 
 
 def run_from_env():
-    # Defaults for script usage
-    pdf_dir = base_dir / "test_files"
-    output_dir = base_dir / "output"
+    # Defaults for script usage - use backend/processing/test_files
+    backend_path = get_backend_path()
+    pdf_dir = backend_path / "processing" / "test_files"
+    output_dir = backend_path / "processing" / "output"
     keywords_env = os.getenv("CIVICPULSE_KEYWORDS", "")
     keywords = [k.strip() for k in keywords_env.split(",") if k.strip()]
     return process_pdfs(pdf_dir, output_dir, keywords)
@@ -117,3 +125,4 @@ def run_from_env():
 
 if __name__ == "__main__":
     run_from_env()
+

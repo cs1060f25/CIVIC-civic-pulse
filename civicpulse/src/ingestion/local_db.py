@@ -9,15 +9,49 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def get_backend_path() -> Path:
+    """Get the backend directory path relative to this module."""
+    # Try multiple possible locations:
+    # 1. Docker environment: /app/backend (when running in Docker)
+    # 2. Local development: civicpulse/src/ingestion/ -> ../../../backend
+    
+    current_dir = Path(__file__).resolve().parent
+    
+    # Check if we're in Docker (working directory is /app)
+    docker_backend = current_dir.parent / "backend"
+    if docker_backend.exists():
+        return docker_backend
+    
+    # Check if we're in local development (civicpulse/src/ingestion/)
+    local_backend = current_dir.parent.parent.parent / "backend"
+    if local_backend.exists():
+        return local_backend
+    
+    # Fallback: try relative to current working directory
+    cwd_backend = Path.cwd() / "backend"
+    if cwd_backend.exists():
+        return cwd_backend
+    
+    # Last resort: assume we're in /app (Docker)
+    return current_dir.parent / "backend"
+
+
 DEFAULT_DB_PATH = "data/civicpulse.db"
 
 
 def get_db_path(db_path: str = None) -> Path:
     """Get the database path and ensure the directory exists."""
+    backend_path = get_backend_path()
+    
     if db_path is None:
         db_path = DEFAULT_DB_PATH
     
-    db_file = Path(db_path)
+    # Resolve relative to backend directory
+    if not Path(db_path).is_absolute():
+        db_file = backend_path / db_path
+    else:
+        db_file = Path(db_path)
+    
     db_file.parent.mkdir(parents=True, exist_ok=True)
     
     return db_file
@@ -30,9 +64,8 @@ def init_db(db_path: str = None) -> None:
     Args:
         db_path: Optional path to the database file (defaults to data/civicpulse.db)
     """
-    # Resolve schema path relative to the backend directory (two levels up from this file)
-    backend_dir = Path(__file__).resolve().parent.parent
-    schema_path = backend_dir / "db" / "schema.sql"
+    backend_path = get_backend_path()
+    schema_path = backend_path / "db" / "schema.sql"
     db_file = get_db_path(db_path)
     
     if not schema_path.exists():

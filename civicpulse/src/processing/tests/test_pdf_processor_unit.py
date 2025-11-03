@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-# Ensure 'backend' directory is on sys.path so 'processing' can be imported when run from repo root
+# Add module directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
@@ -89,10 +89,11 @@ class TestPdfProcessorUnit(unittest.TestCase):
     def setUp(self):
         install_fake_pymupdf_and_pytesseract()
         # Defer import until fakes are installed
-        from processing import pdf_processor as pp
+        import pdf_processor as pp
         self.pp = pp
         # Ensure no real image decoding occurs even if real PIL is present
-        self.pp.Image.open = lambda *_args, **_kwargs: SimpleNamespace()
+        import PIL.Image
+        PIL.Image.open = lambda *_args, **_kwargs: SimpleNamespace()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.pdf_dir = Path(self.tmpdir.name) / "pdfs"
         self.out_dir = Path(self.tmpdir.name) / "out"
@@ -130,3 +131,4 @@ class TestPdfProcessorUnit(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -9,12 +9,16 @@ Tests cover:
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Add module directory to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 class MockResponse:
@@ -56,23 +60,24 @@ class MockResponse:
 
 @pytest.fixture
 def mock_schema(tmp_path):
-    """Ensure schema.json is accessible by making it relative to backend/."""
-    schema_path = Path(__file__).parent.parent / "configs" / "schema.json"
+    """Ensure schema.json is accessible."""
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
+    schema_path = backend_path / "configs" / "schema.json"
     return schema_path
 
 
 def test_config_validation_happy_path(mock_schema):
     """Test loading and validating a valid config file."""
-    from ingestion.config_loader import load_config
+    from config_loader import load_config
     
     # Change to backend directory so relative paths work
-    backend_dir = Path(__file__).parent.parent
+    # From tests/ -> ingestion/ -> src/ -> civicpulse/ -> CIVIC-civic-pulse/ -> backend
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     try:
-        import os
-        os.chdir(backend_dir)
-        config = load_config("configs/wichita_city_council.yaml")
+        os.chdir(backend_path)
+        config = load_config("wichita_city_council.yaml")
         
         assert "id" in config
         assert "start_urls" in config
@@ -88,14 +93,13 @@ def test_config_validation_happy_path(mock_schema):
 
 def test_config_validation_failure(tmp_path):
     """Test validation failure with missing required field."""
-    from ingestion.config_loader import load_config
+    from config_loader import load_config
     
-    backend_dir = Path(__file__).parent.parent
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     try:
-        import os
-        os.chdir(backend_dir)
+        os.chdir(backend_path)
         
         # Create invalid YAML missing "id"
         invalid_config = tmp_path / "invalid.yaml"
@@ -137,15 +141,15 @@ flags:
 def test_target_date_calculation():
     """Test compute_target_date for specific dates."""
     from datetime import date
-    from ingestion.config_loader import load_config, compute_target_date
+    from config_loader import load_config, compute_target_date
     import os
     
-    backend_dir = Path(__file__).parent.parent
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     try:
-        os.chdir(backend_dir)
-        config = load_config("configs/wichita_city_council.yaml")
+        os.chdir(backend_path)
+        config = load_config("wichita_city_council.yaml")
         
         # October 28, 2025 is a Tuesday (weekday() == 1)
         # Offset is -14 days
@@ -165,14 +169,14 @@ def test_target_date_calculation():
 
 def test_duplicate_prevention_roundtrip(tmp_path):
     """Test duplicate prevention with init_db and save_if_new."""
-    from ingestion.local_db import init_db, save_if_new
+    from local_db import init_db, save_if_new
     import os
     
-    backend_dir = Path(__file__).parent.parent
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     try:
-        os.chdir(backend_dir)
+        os.chdir(backend_path)
         
         # Use temp DB
         db_path = tmp_path / "test.db"
@@ -183,55 +187,50 @@ def test_duplicate_prevention_roundtrip(tmp_path):
         # Verify it was created
         assert db_path.exists()
         
-        # Override the default path since save_if_new uses get_db_path()
-        from ingestion import local_db
-        original_get_db = local_db.get_db_path
-        local_db.get_db_path = lambda p=None: Path(str(db_path))
+        # First save - should create
+        PDF1 = b"%PDF-1.4\nA"
+        result1 = save_if_new(
+            "wichita_city_council",
+            "https://example.com/a.pdf",
+            PDF1,
+            db_path=str(db_path)
+        )
+        assert result1["status"] == "created"
+        assert "document_id" in result1
+        assert "content_hash" in result1
+        document_id1 = result1["document_id"]
         
-        try:
-            # First save - should create
-            PDF1 = b"%PDF-1.4\nA"
-            result1 = save_if_new(
-                "wichita_city_council",
-                "https://example.com/a.pdf",
-                PDF1
-            )
-            assert result1["status"] == "created"
-            assert "document_id" in result1
-            assert "content_hash" in result1
-            document_id1 = result1["document_id"]
-            
-            # Second save with same bytes - should be duplicate
-            result2 = save_if_new(
-                "wichita_city_council",
-                "https://example.com/a.pdf",
-                PDF1
-            )
-            assert result2["status"] == "duplicate"
-            assert result2["document_id"] == document_id1
-            
-            # Third save with different bytes - should create
-            PDF2 = b"%PDF-1.4\nB"
-            result3 = save_if_new(
-                "wichita_city_council",
-                "https://example.com/a.pdf",  # same URL but different content
-                PDF2
-            )
-            assert result3["status"] == "created"
-            assert result3["document_id"] != document_id1
-        finally:
-            local_db.get_db_path = original_get_db
+        # Second save with same bytes - should be duplicate
+        result2 = save_if_new(
+            "wichita_city_council",
+            "https://example.com/a.pdf",
+            PDF1,
+            db_path=str(db_path)
+        )
+        assert result2["status"] == "duplicate"
+        assert result2["document_id"] == document_id1
+        
+        # Third save with different bytes - should create
+        PDF2 = b"%PDF-1.4\nB"
+        result3 = save_if_new(
+            "wichita_city_council",
+            "https://example.com/a.pdf",  # same URL but different content
+            PDF2,
+            db_path=str(db_path)
+        )
+        assert result3["status"] == "created"
+        assert result3["document_id"] != document_id1
     finally:
         os.chdir(original_cwd)
 
 
 def test_single_link_scraper_mocked_network(tmp_path):
     """Test single-link scraper with mocked network for valid PDF."""
-    from ingestion.single_link_scraper import download_url, is_pdf_content, is_allowed_domain
-    from ingestion.config_loader import load_config
+    from single_link_scraper import download_url, is_pdf_content, is_allowed_domain
+    from config_loader import load_config
     import os
     
-    backend_dir = Path(__file__).parent.parent
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     mock_content = b"%PDF-1.4\nHELLO"
@@ -241,10 +240,10 @@ def test_single_link_scraper_mocked_network(tmp_path):
         return MockResponse(mock_content, mock_headers)
     
     try:
-        os.chdir(backend_dir)
+        os.chdir(backend_path)
         
         # Mock the network call
-        with patch('ingestion.single_link_scraper.urlopen', side_effect=mock_urlopen):
+        with patch('single_link_scraper.urlopen', side_effect=mock_urlopen):
             # Test downloading the URL
             content_bytes, content_type = download_url("https://www.wichita.gov/test.pdf")
             
@@ -252,7 +251,7 @@ def test_single_link_scraper_mocked_network(tmp_path):
             assert is_pdf_content(content_type, content_bytes)
             
             # Verify domain validation
-            config = load_config("configs/wichita_city_council.yaml")
+            config = load_config("wichita_city_council.yaml")
             assert is_allowed_domain("www.wichita.gov", config["allowed_domains"])
             
             # Verify content was downloaded
@@ -265,10 +264,10 @@ def test_single_link_scraper_mocked_network(tmp_path):
 
 def test_single_link_scraper_rejects_non_pdf(tmp_path):
     """Test single-link scraper rejects non-PDF content."""
-    from ingestion.single_link_scraper import download_url, is_pdf_content
+    from single_link_scraper import download_url, is_pdf_content
     import os
     
-    backend_dir = Path(__file__).parent.parent
+    backend_path = Path(__file__).resolve().parent.parent.parent.parent.parent / "backend"
     original_cwd = Path.cwd()
     
     mock_content = b"<!doctype html><html></html>"
@@ -278,10 +277,10 @@ def test_single_link_scraper_rejects_non_pdf(tmp_path):
         return MockResponse(mock_content, mock_headers)
     
     try:
-        os.chdir(backend_dir)
+        os.chdir(backend_path)
         
         # Mock the network call
-        with patch('ingestion.single_link_scraper.urlopen', side_effect=mock_urlopen):
+        with patch('single_link_scraper.urlopen', side_effect=mock_urlopen):
             # Test downloading non-PDF content
             content_bytes, content_type = download_url("https://www.wichita.gov/page.html")
             

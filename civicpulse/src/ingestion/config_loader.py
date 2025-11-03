@@ -25,12 +25,53 @@ MONTH_NAMES = {
 }
 
 
+def get_backend_path() -> Path:
+    """Get the backend directory path relative to this module."""
+    # This file is in civicpulse/src/ingestion/
+    # Backend is at ../../../backend (up to civicpulse, then up to CIVIC-civic-pulse, then to backend)
+    current_dir = Path(__file__).resolve().parent
+    
+    # Check if we're in local development (civicpulse/src/ingestion/)
+    local_backend = current_dir.parent.parent.parent / "backend"
+    if local_backend.exists():
+        return local_backend
+    
+    # Check if we're in Docker (working directory is /app)
+    docker_backend = current_dir.parent / "backend"
+    if docker_backend.exists():
+        return docker_backend
+    
+    # Fallback: try relative to current working directory
+    cwd_backend = Path.cwd() / "backend"
+    if cwd_backend.exists():
+        return cwd_backend
+    
+    # Last resort: assume we're in /app (Docker)
+    return current_dir.parent / "backend"
+
+
+def get_configs_path() -> Path:
+    """Get the configs directory path relative to this module."""
+    # Configs are now in civicpulse/src/ingestion/configs/
+    current_dir = Path(__file__).resolve().parent
+    configs_path = current_dir / "configs"
+    
+    # If configs don't exist in module directory, check backend/configs (legacy)
+    if not configs_path.exists():
+        backend_path = get_backend_path()
+        legacy_configs = backend_path / "configs"
+        if legacy_configs.exists():
+            return legacy_configs
+    
+    return configs_path
+
+
 def load_config(path: str) -> dict:
     """
     Load a YAML config file and validate against schema.json.
     
     Args:
-        path: Path to the YAML config file
+        path: Path to the YAML config file (can be relative or absolute)
         
     Returns:
         Validated config dictionary
@@ -40,13 +81,18 @@ def load_config(path: str) -> dict:
         ValidationError: If config doesn't match schema
     """
     config_path = Path(path)
-    schema_path = Path("configs/schema.json")
+    configs_path = get_configs_path()
+    schema_path = configs_path / "schema.json"
+    
+    # If config path is relative, assume it's relative to configs directory
+    if not config_path.is_absolute():
+        config_path = configs_path / config_path.name
     
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
     
     if not schema_path.exists():
-        raise FileNotFoundError(f"Schema file not found: configs/schema.json")
+        raise FileNotFoundError(f"Schema file not found: {schema_path}")
     
     # Load schema
     with open(schema_path, 'r') as f:

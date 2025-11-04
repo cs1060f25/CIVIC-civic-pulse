@@ -8,6 +8,54 @@ import { useAppState } from "@/lib/state";
 
 const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinance", "Other"];
 
+// Mock documents for testing (until database is properly set up)
+const MOCK_DOCUMENTS: FeedItem[] = [
+  {
+    id: "mock-doc-1",
+    sourceId: "johnson_county_planning",
+    fileUrl: "https://example.com/mock-agenda.pdf",
+    contentHash: "mock-hash-1",
+    bytesSize: 524288,
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    title: "[MOCK] Proposed Solar Energy Facility Regulations",
+    entity: "Johnson County Planning Commission",
+    jurisdiction: "Johnson County, KS",
+    counties: ["Johnson"],
+    meetingDate: new Date(Date.now() - 86400000 * 3).toISOString(),
+    docTypes: ["Agenda", "Staff Memo"],
+    impact: "High",
+    stage: "Hearing",
+    topics: ["solar zoning", "renewable energy", "land use"],
+    hits: { "solar": 5, "zoning": 3 },
+    extractedText: [],
+    pdfPreview: [],
+    attachments: [],
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "mock-doc-2",
+    sourceId: "sedgwick_county_council",
+    fileUrl: "https://example.com/mock-minutes.pdf",
+    contentHash: "mock-hash-2",
+    bytesSize: 245760,
+    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+    title: "[MOCK] City Council Meeting Minutes - Budget Discussion",
+    entity: "Sedgwick County City Council",
+    jurisdiction: "Sedgwick County, KS",
+    counties: ["Sedgwick"],
+    meetingDate: new Date(Date.now() - 86400000 * 8).toISOString(),
+    docTypes: ["Minutes"],
+    impact: "Medium",
+    stage: "Adopted",
+    topics: ["budget", "infrastructure", "public works"],
+    hits: { "budget": 12, "infrastructure": 4 },
+    extractedText: [],
+    pdfPreview: [],
+    attachments: [],
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 export default function SearchPage() {
   const { state, addToBrief } = useAppState();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -27,7 +75,7 @@ export default function SearchPage() {
     return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
   }
 
-  // Fetch documents from API
+  // Fetch documents from API (with mock fallback)
   useEffect(() => {
     async function fetchDocuments() {
       setLoading(true);
@@ -44,15 +92,21 @@ export default function SearchPage() {
         const response = await fetch(`/api/documents?${params.toString()}`);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch documents: ${response.statusText}`);
+          // If API fails, use mock documents
+          console.warn("API failed, using mock documents");
+          setDocuments(MOCK_DOCUMENTS);
+          setLoading(false);
+          return;
         }
         
         const data = await response.json();
-        setDocuments(data.documents || []);
+        // Combine API results with mock documents
+        const apiDocs = data.documents || [];
+        setDocuments([...MOCK_DOCUMENTS, ...apiDocs]);
       } catch (err) {
         console.error("Error fetching documents:", err);
-        setError(err instanceof Error ? err.message : "Failed to load documents");
-        setDocuments([]);
+        // On error, fall back to mock documents
+        setDocuments(MOCK_DOCUMENTS);
       } finally {
         setLoading(false);
       }

@@ -120,19 +120,22 @@ export default function SearchPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
-      <div className="mt-4 grid lg:grid-cols-4 gap-6">
-        <aside className="lg:col-span-1 space-y-6">
-          <Button
-            variant="secondary"
-            className="w-full"
-            disabled={selectedIds.length === 0}
-            onClick={() => {
-              selectedIds.forEach((id) => addToBrief(id));
-              setSelectedIds([]);
-            }}
-          >
-            Add {selectedIds.length || "0"} selected to brief
-          </Button>
+      <div className="mt-6 grid lg:grid-cols-4 gap-6">
+        <aside className="lg:col-span-1 space-y-4">
+          {/* Button shown in sidebar on desktop only */}
+          <div className="hidden lg:block">
+            <Button
+              variant="secondary"
+              className="w-full"
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                selectedIds.forEach((id) => addToBrief(id));
+                setSelectedIds([]);
+              }}
+            >
+              Add {selectedIds.length || "0"} selected to brief
+            </Button>
+          </div>
           <Card>
             <label className="block text-sm font-medium">Query</label>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder='e.g. ("utility-scale" AND zoning) AND (setback OR buffer)' className="input mt-2" />
@@ -182,59 +185,116 @@ export default function SearchPage() {
           </Card>
         </aside>
         <section className="lg:col-span-3">
-          <div className="rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-x-auto">
-            <div className="min-w-[1200px] grid grid-cols-12 bg-white/10 text-[13px] font-medium border-b border-white/10">
-              <div className="col-span-1 px-4 py-3">Select</div>
-              <div className="col-span-4 px-4 py-3">Title</div>
-              <div className="col-span-3 px-4 py-3">Entity / County</div>
-              <div className="col-span-2 px-4 py-3">Docs</div>
-              <div className="col-span-1 px-4 py-3">Date</div>
-              <div className="col-span-1 px-4 py-3">Impact</div>
-            </div>
-            {loading && (
-              <div className="p-6 text-sm muted text-center">Loading documents...</div>
-            )}
-            {error && (
-              <div className="p-6 text-sm text-red-400">Error: {error}</div>
-            )}
-            {!loading && !error && results.map((item, idx) => (
-              <div key={item.id} className={`min-w-[1200px] grid grid-cols-12 border-t border-white/10 text-sm leading-7 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
-                <div className="col-span-1 px-4 py-4">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 align-middle accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleSelected(item.id)}
-                    disabled={state.briefItemIds.includes(item.id)}
-                    title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
-                  />
-                </div>
-                <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100]">{item.title}</Link>
-                    {state.briefItemIds.includes(item.id) && (
-                      <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
-                    )}
-                  </div>
-                  <div className="text-xs muted mt-1">Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}</div>
-                </div>
-                <div className="col-span-3 px-4 py-4 overflow-hidden break-words">
-                  <div className="font-medium text-xs">{item.entity}</div>
-                  <div className="text-xs muted">{item.jurisdiction}</div>
-                </div>
-                <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis">{item.docTypes.join(", ")}</div>
-                <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap">
-                  {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                </div>
-                <div className="col-span-1 px-4 py-4">
-                  <ImpactBadge level={item.impact} />
-                </div>
+          {/* Button shown above results on mobile only */}
+          <Button
+            variant="secondary"
+            className="lg:hidden w-full mb-4"
+            disabled={selectedIds.length === 0}
+            onClick={() => {
+              selectedIds.forEach((id) => addToBrief(id));
+              setSelectedIds([]);
+            }}
+          >
+            Add {selectedIds.length || "0"} selected to brief
+          </Button>
+          
+          {loading && (
+            <Card className="p-6 text-sm muted text-center">Loading documents...</Card>
+          )}
+          {error && (
+            <Card className="p-6 text-sm text-red-400">Error: {error}</Card>
+          )}
+          {!loading && !error && results.length === 0 && (
+            <Card className="p-6 text-sm muted">No results match your filters.</Card>
+          )}
+          
+          {/* Desktop Table View - hidden on mobile */}
+          {!loading && !error && results.length > 0 && (
+            <div className="hidden lg:block rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-hidden">
+              <div className="grid grid-cols-12 bg-white/10 text-[13px] font-medium border-b border-white/10">
+                <div className="col-span-1 px-4 py-3">Select</div>
+                <div className="col-span-4 px-4 py-3">Title</div>
+                <div className="col-span-3 px-4 py-3">Entity / County</div>
+                <div className="col-span-2 px-4 py-3">Docs</div>
+                <div className="col-span-1 px-4 py-3">Date</div>
+                <div className="col-span-1 px-4 py-3">Impact</div>
               </div>
-            ))}
-            {!loading && !error && results.length === 0 && (
-              <div className="p-6 text-sm muted">No results match your filters.</div>
-            )}
-          </div>
+              {results.map((item, idx) => (
+                <div key={item.id} className={`grid grid-cols-12 border-t border-white/10 text-sm leading-7 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
+                  <div className="col-span-1 px-4 py-4">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 align-middle accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      disabled={state.briefItemIds.includes(item.id)}
+                      title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
+                    />
+                  </div>
+                  <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100]">{item.title}</Link>
+                      {state.briefItemIds.includes(item.id) && (
+                        <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
+                      )}
+                    </div>
+                    <div className="text-xs muted mt-1">Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}</div>
+                  </div>
+                  <div className="col-span-3 px-4 py-4 overflow-hidden break-words">
+                    <div className="font-medium text-xs">{item.entity}</div>
+                    <div className="text-xs muted">{item.jurisdiction}</div>
+                  </div>
+                  <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis">{item.docTypes.join(", ")}</div>
+                  <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap">
+                    {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                  </div>
+                  <div className="col-span-1 px-4 py-4">
+                    <ImpactBadge level={item.impact} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Mobile Card View - shown only on mobile */}
+          {!loading && !error && results.length > 0 && (
+            <div className="lg:hidden space-y-4">
+              {results.map((item) => (
+                <Card key={item.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      disabled={state.briefItemIds.includes(item.id)}
+                      title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100] block">
+                        {item.title}
+                      </Link>
+                      <div className="text-xs muted mt-1">
+                        {item.entity} — {item.jurisdiction}
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        <ImpactBadge level={item.impact} />
+                        {state.briefItemIds.includes(item.id) && (
+                          <Badge color="brand">In Brief</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs muted mt-2">
+                        {item.docTypes.join(", ")} • {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                      </div>
+                      <div className="text-xs muted mt-1">
+                        Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </main>

@@ -1,0 +1,35 @@
+id: "clay_county"
+
+# The main page URL with the table of meetings
+# Need to find the specific page URL for Clay County
+page_url: "https://www.claycountykansas.org/AgendaCenter"
+
+# County name for filename generation
+city_name: "Clay County"
+
+# Allowed domains for security
+allowed_domains:
+  - "claycountykansas.org"
+
+# CSS selectors for extracting meeting data from the HTML table
+selectors:
+  # Selector for each table row containing a meeting
+  meeting_row: "table tbody tr"
+  
+  # Selector for the date within each row (first column typically)
+  date_selector: "td:first-child"
+  
+  # Selector for the Agenda link (fallback logic will also search)
+  agenda_link: 'td:nth-child(1) a[href*="ViewFile/Agenda"], td:nth-child(4) a[href*="ViewFile/Agenda"]'
+  
+  # Selector for the Minutes link (in the Minutes column)
+  minutes_link: 'td:nth-child(2) a[href*="ViewFile/Minutes"]'
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+
+# Document types to download
+download_types:
+  - "Agenda"
+  - "Minutes"
+

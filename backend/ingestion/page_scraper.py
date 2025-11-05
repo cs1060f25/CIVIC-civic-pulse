@@ -7,6 +7,7 @@ Designed to work with CivicPlus agenda center pages and similar structures.
 import argparse
 import json
 import re
+import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +24,7 @@ except ImportError:
     sys.exit(1)
 
 # Import existing helpers
-from ingestion.local_db import init_db, save_if_new
+from ingestion.local_db import init_db, save_if_new, url_exists_in_db
 from ingestion.single_link_scraper import download_url, is_allowed_domain, is_pdf_content
 
 try:
@@ -230,7 +231,24 @@ def download_and_save_pdf(
             result["reason"] = f"Domain '{host}' not in allowed domains: {allowed_domains}"
             return result
         
-        # Download
+        # Fast URL pre-check: skip download if URL already exists in database
+        db_path = Path("data/civicpulse.db")
+        if url_exists_in_db(url, str(db_path)):
+            result["status"] = "duplicate"
+            result["reason"] = "URL already exists in database (skipped download)"
+            # Get existing document ID for consistency
+            conn = sqlite3.connect(str(db_path))
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM documents WHERE file_url = ? LIMIT 1", (url,))
+                row = cursor.fetchone()
+                if row:
+                    result["document_id"] = row[0]
+            finally:
+                conn.close()
+            return result
+        
+        # Download (only if URL is new)
         content_bytes, content_type = download_url(url)
         
         # Check if PDF

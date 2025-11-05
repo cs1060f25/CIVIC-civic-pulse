@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash 
     ON documents(content_hash);
 
+-- Index on file_url for fast URL-based duplicate checking before download
+CREATE INDEX IF NOT EXISTS idx_documents_file_url 
+    ON documents(file_url);
+
 -- Extended metadata table for rich document information
 CREATE TABLE IF NOT EXISTS document_metadata (
     document_id TEXT PRIMARY KEY,

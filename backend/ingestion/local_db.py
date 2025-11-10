@@ -51,6 +51,31 @@ def init_db(db_path: str = None) -> None:
         conn.close()
 
 
+def url_exists_in_db(file_url: str, db_path: str = None) -> bool:
+    """
+    Check if a URL already exists in the database (fast check before download).
+    
+    Args:
+        file_url: The URL to check
+        db_path: Optional path to the database file
+        
+    Returns:
+        True if URL exists, False otherwise
+    """
+    db_file = get_db_path(db_path)
+    conn = sqlite3.connect(str(db_file))
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM documents WHERE file_url = ? LIMIT 1",
+            (file_url,)
+        )
+        return cursor.fetchone() is not None
+    finally:
+        conn.close()
+
+
 def save_if_new(source_id: str, file_url: str, content_bytes: bytes, db_path: str = None) -> dict:
     """
     Save a document to the database if it doesn't already exist (based on content hash).

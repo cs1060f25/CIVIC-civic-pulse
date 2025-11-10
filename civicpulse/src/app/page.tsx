@@ -1,103 +1,141 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Button, Card } from "@/components/ui";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <main className="min-h-screen">
+      {/* Hero Section */}
+      <section className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+          The municipal intelligence layer
+        </h1>
+        <p className="text-xl sm:text-2xl text-[--color-muted] max-w-3xl mx-auto mb-8">
+          Surface local policy trends before they make headlines
+        </p>
+        <p className="text-lg text-[--color-muted] max-w-2xl mx-auto mb-12">
+          CivicPulse turns scattered agendas and minutes into clear, searchable signals across jurisdictions—so you can move fast, brief stakeholders, and never miss what matters.
+        </p>
+        <div className="flex gap-4 justify-center flex-wrap">
+          <Link href="/search">
+            <Button className="px-8 py-3 text-base">
+              Start Searching
+            </Button>
+          </Link>
+          <Link href="/brief">
+            <Button variant="secondary" className="px-8 py-3 text-base">
+              Build a Brief
+            </Button>
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </section>
+
+      {/* Value Proposition */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-semibold tracking-tight mb-4">
+            Stop digging through PDFs. Start seeing patterns.
+          </h2>
+          <p className="text-lg text-[--color-muted] max-w-2xl mx-auto">
+            Find local trends before they break nationally. Track policy shifts across jurisdictions in real time.
+          </p>
+        </div>
+
+        {/* Feature Callouts */}
+        <div className="grid md:grid-cols-3 gap-8 mt-16">
+          <Card className="p-6">
+            <div className="w-12 h-12 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Search & Compare</h3>
+            <p className="text-[--color-muted] mb-4">
+              Search by keyword, geography, and time. Triage results in seconds with advanced filters and relevance scoring.
+            </p>
+            <Link href="/search" className="text-[--color-brand-100] hover:underline text-sm font-medium">
+              Explore search →
+            </Link>
+          </Card>
+
+          <Card className="p-6">
+            <div className="w-12 h-12 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Brief Builder</h3>
+            <p className="text-[--color-muted] mb-4">
+              Assemble concise briefs with citations and export in one click. Share insights with stakeholders instantly.
+            </p>
+            <Link href="/brief" className="text-[--color-brand-100] hover:underline text-sm font-medium">
+              Build a brief →
+            </Link>
+          </Card>
+
+          <Card className="p-6">
+            <div className="w-12 h-12 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Trends Dashboard</h3>
+            <p className="text-[--color-muted] mb-4">
+              Heatmaps and timelines reveal where topics emerge and evolve across jurisdictions.
+            </p>
+            <span className="text-[--color-muted] text-sm font-medium">
+              Coming soon
+            </span>
+          </Card>
+        </div>
+      </section>
+
+      {/* Use Cases */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 border-t border-white/10">
+        <h2 className="text-3xl font-semibold tracking-tight mb-12 text-center">
+          Built for professionals who need to stay ahead
+        </h2>
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="p-6 rounded-lg border border-white/10 bg-surface/40">
+            <h3 className="text-lg font-semibold mb-2">Journalists & Reporters</h3>
+            <p className="text-[--color-muted]">
+              Identify emerging storylines at the local level. Track policy debates across jurisdictions before they hit the national stage.
+            </p>
+          </div>
+          <div className="p-6 rounded-lg border border-white/10 bg-surface/40">
+            <h3 className="text-lg font-semibold mb-2">Policy Analysts & Researchers</h3>
+            <p className="text-[--color-muted]">
+              Spot trends and patterns across municipalities. Brief legislators with data-driven insights on emerging issues.
+            </p>
+          </div>
+          <div className="p-6 rounded-lg border border-white/10 bg-surface/40">
+            <h3 className="text-lg font-semibold mb-2">Advocacy Groups & Organizers</h3>
+            <p className="text-[--color-muted]">
+              Detect policy shifts early. Coordinate responses and engage with local stakeholders before decisions are finalized.
+            </p>
+          </div>
+          <div className="p-6 rounded-lg border border-white/10 bg-surface/40">
+            <h3 className="text-lg font-semibold mb-2">Developers & Strategists</h3>
+            <p className="text-[--color-muted]">
+              Track zoning changes, incentives, and regulatory shifts. Make informed decisions about where to invest and develop.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <h2 className="text-3xl font-semibold tracking-tight mb-4">
+          Ready to get started?
+        </h2>
+        <p className="text-lg text-[--color-muted] mb-8 max-w-2xl mx-auto">
+          Create your workspace, pick jurisdictions and topics, and let CivicPulse surface the signals that matter to you.
+        </p>
+        <Link href="/search">
+          <Button className="px-8 py-3 text-base">
+            Start Searching Now
+          </Button>
+        </Link>
+      </section>
+    </main>
   );
 }

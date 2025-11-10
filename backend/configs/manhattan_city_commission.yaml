@@ -1,0 +1,37 @@
+id: "manhattan_city_commission"
+
+# The main page URL with the table of meetings
+# Based on the structure, we'll need to find the specific City Commission page
+page_url: "https://www.manhattanks.gov/agendacenter/City-Commission-6"
+
+# City name for filename generation
+city_name: "Manhattan"
+
+# Allowed domains for security
+allowed_domains:
+  - "manhattanks.gov"
+
+# CSS selectors for extracting meeting data from the HTML table
+selectors:
+  # Selector for each table row containing a meeting
+  meeting_row: "table tbody tr"
+  
+  # Selector for the date within each row (first column typically)
+  date_selector: "td:first-child"
+  
+  # Selector for the Agenda link (found in first column or Download column)
+  # Fallback logic will also search for any link with "ViewFile/Agenda"
+  agenda_link: 'td:first-child a[href*="ViewFile/Agenda"], td:nth-child(4) a[href*="ViewFile/Agenda"]'
+  
+  # Selector for the Minutes link (in the Minutes column - second column)
+  # Fallback logic will also search for any link with "ViewFile/Minutes"
+  minutes_link: 'td:nth-child(2) a[href*="ViewFile/Minutes"]'
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+
+# Document types to download
+download_types:
+  - "Agenda"
+  - "Minutes"
+

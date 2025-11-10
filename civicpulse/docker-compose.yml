@@ -52,6 +52,25 @@ services:
       - civicpulse-network
     restart: unless-stopped
 
+  # LLM metadata parser
+  lm-parser:
+    build:
+      context: ./src/lm_parser
+      dockerfile: Dockerfile
+    volumes:
+      - ../../backend/processing:/app/backend/processing
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db:ro
+      - ../../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GOOGLE_API_KEY_PATH=/run/secrets/google_api_key.txt
+    depends_on:
+      - processing
+    networks:
+      - civicpulse-network
+    restart: unless-stopped
+
 networks:
   civicpulse-network:
     driver: bridge

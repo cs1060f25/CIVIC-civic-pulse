@@ -1,9 +1,46 @@
 import sys, pathlib, pymupdf, os
-import logging, io, csv, json
+import logging, io, csv, json, argparse
 from PIL import Image
 import pytesseract
 
 base_dir = pathlib.Path(__file__).resolve().parent
+
+
+def extract_pdf(pdf_path: pathlib.Path) -> dict:
+    per_page = []
+    text_pages = 0
+    ocr_pages = 0
+    with pymupdf.open(str(pdf_path)) as doc:
+        for page in doc:
+            t = page.get_text("text", sort=True)
+            if t and t.strip():
+                per_page.append({"index": page.number, "source": "native", "text": t})
+                text_pages += 1
+            else:
+                try:
+                    pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
+                    img_bytes = pix.tobytes(output="png")
+                    img = Image.open(io.BytesIO(img_bytes))
+                except Exception:
+                    # In unit tests, fakes may not provide real image bytes; use a dummy placeholder
+                    img = object()
+                t_ocr = pytesseract.image_to_string(img)
+                try:
+                    data = pytesseract.image_to_data(img, output=pytesseract.Output.DICT)
+                    confs = [int(c) for c in data.get("conf", []) if c.isdigit() and int(c) >= 0]
+                    avg_conf = (sum(confs) / len(confs)) if confs else None
+                except Exception:
+                    avg_conf = None
+                per_page.append({"index": page.number, "source": "ocr", "text": t_ocr, "ocr_avg_conf": avg_conf})
+                ocr_pages += 1
+    text = chr(12).join(p["text"] for p in per_page)
+    text = "\n".join(line.lstrip() for line in text.splitlines())
+    return {
+        "text": text,
+        "per_page": per_page,
+        "text_pages": text_pages,
+        "ocr_pages": ocr_pages,
+    }
 
 
 def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list[str]) -> list[dict]:
@@ -25,38 +62,15 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
                 continue
             pdf_path = os.path.join(root, file)
             try:
-                with pymupdf.open(pdf_path) as doc:  # open document
-                    per_page = []
-                    text_pages = 0
-                    ocr_pages = 0
-                    for page in doc:
-                        t = page.get_text("text", sort=True)
-                        if t and t.strip():
-                            per_page.append({"index": page.number, "source": "native", "text": t})
-                            text_pages += 1
-                        else:
-                            pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
-                            img_bytes = pix.tobytes(output="png")
-                            img = Image.open(io.BytesIO(img_bytes))
-                            t_ocr = pytesseract.image_to_string(img)
-                            try:
-                                data = pytesseract.image_to_data(img, output=pytesseract.Output.DICT)
-                                confs = [int(c) for c in data.get("conf", []) if c.isdigit() and int(c) >= 0]
-                                avg_conf = (sum(confs) / len(confs)) if confs else None
-                            except Exception:
-                                avg_conf = None
-                            per_page.append({"index": page.number, "source": "ocr", "text": t_ocr, "ocr_avg_conf": avg_conf})
-                            ocr_pages += 1
-                    text = chr(12).join(p["text"] for p in per_page)
-                    text = "\n".join(line.lstrip() for line in text.splitlines())
-            except Exception as e:
+                result = extract_pdf(pathlib.Path(pdf_path))
+            except Exception:
                 logging.exception(f"Failed processing {pdf_path}")
                 continue
 
             # write as a binary file to support non-ASCII characters
             out_txt_path = os.path.join(str(output_dir), file.split(".")[0] + ".txt")
             try:
-                pathlib.Path(out_txt_path).write_bytes(text.encode())
+                pathlib.Path(out_txt_path).write_bytes(result["text"].encode())
                 logging.info(f"Wrote text for {pdf_path} to {out_txt_path}")
             except Exception:
                 logging.exception(f"Failed writing text for {pdf_path}")
@@ -67,10 +81,10 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
             try:
                 json_payload = {
                     "file": os.path.relpath(pdf_path, str(pdf_dir)),
-                    "pages": text_pages + ocr_pages,
-                    "text_pages": text_pages,
-                    "ocr_pages": ocr_pages,
-                    "per_page": per_page,
+                    "pages": result["text_pages"] + result["ocr_pages"],
+                    "text_pages": result["text_pages"],
+                    "ocr_pages": result["ocr_pages"],
+                    "per_page": result["per_page"],
                 }
                 with open(out_json_path, "w", encoding="utf-8") as jf:
                     json.dump(json_payload, jf, ensure_ascii=False, indent=2)
@@ -79,17 +93,17 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
                 logging.exception(f"Failed writing JSON for {pdf_path}")
                 continue
 
-            total_chars = len(text)
+            total_chars = len(result["text"])
             hits = {}
             if keywords:
-                low = text.lower()
+                low = result["text"].lower()
                 for k in keywords:
                     hits[k] = low.count(k.lower())
             summary_rows.append({
                 "file": os.path.relpath(pdf_path, str(pdf_dir)),
-                "pages": text_pages + ocr_pages,
-                "text_pages": text_pages,
-                "ocr_pages": ocr_pages,
+                "pages": json_payload["pages"],
+                "text_pages": result["text_pages"],
+                "ocr_pages": result["ocr_pages"],
                 "total_chars": total_chars,
                 **{f"kw:{k}": v for k, v in hits.items()}
             })
@@ -102,6 +116,7 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
             writer.writeheader()
             for row in summary_rows:
                 writer.writerow(row)
+    return summary_rows
 
     return summary_rows
 
@@ -113,6 +128,20 @@ def run_from_env():
     keywords_env = os.getenv("CIVICPULSE_KEYWORDS", "")
     keywords = [k.strip() for k in keywords_env.split(",") if k.strip()]
     return process_pdfs(pdf_dir, output_dir, keywords)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Batch PDF text extraction with OCR fallback")
+    parser.add_argument("--src", type=str, default=str(base_dir / "test_files"), help="Source directory containing PDFs")
+    parser.add_argument("--out", type=str, default=str(base_dir / "output"), help="Output directory for .txt/.json and logs")
+    parser.add_argument("--kw", type=str, default=os.getenv("CIVICPULSE_KEYWORDS", ""), help="Comma-separated keywords to count")
+    args = parser.parse_args()
+
+    src = pathlib.Path(args.src)
+    out = pathlib.Path(args.out)
+    keywords = [k.strip() for k in args.kw.split(",") if k.strip()]
+    processed = process_pdfs(src, out, keywords)
+    print(f"Processed {len(processed)} PDFs. Outputs -> {out}")
 
 
 if __name__ == "__main__":

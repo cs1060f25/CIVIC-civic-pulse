@@ -1,0 +1,19 @@
+id: "hutchinson_civicplus"
+
+# The main page URL with the tabbed meeting interface
+page_url: "https://www.hutchinsonks.gov/269/City-Council-Agendas"
+
+# City name for filename generation
+city_name: "Hutchinson"
+
+# Target year to scrape
+target_year: 2025
+
+# Allowed domains for security
+allowed_domains:
+  - "hutchinsonks.gov"
+  - "content.civicplus.com"  # Minutes PDFs are hosted on CivicPlus CDN
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+

@@ -1,0 +1,20 @@
+id: "lawrence_civicweb"
+
+# Base host and entry (root folder) URL for Lawrence's CivicWeb library
+base_url: "https://lawrenceks.civicweb.net"
+root_folder_url: "/filepro/documents/434370/"
+
+# City name for output directory structure
+city_name: "Lawrence"
+
+# Target year to scrape (initial test scope)
+target_year: 2025
+
+# Allowed domains for basic validation
+allowed_domains:
+  - "lawrenceks.civicweb.net"
+
+# Output directory relative to backend/
+output_dir: "data/raw notes"
+
+

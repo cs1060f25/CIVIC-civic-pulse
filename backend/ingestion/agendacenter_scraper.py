@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Page scraper that downloads all Agenda and Minutes PDFs from an agenda center page.
-Designed to work with CivicPlus agenda center pages and similar structures.
+AgendaCenter scraper that downloads all Agenda and Minutes PDFs from AgendaCenter pages.
+Designed to work with CivicPlus AgendaCenter pages (e.g., Wichita, Manhattan, Hays, Great Bend).
 """
 
 import argparse
@@ -267,20 +267,20 @@ def download_and_save_pdf(
         result["document_id"] = db_result["document_id"]
         result["bytes"] = len(content_bytes)
         
-        # Save file if new
-        if db_result["status"] == "created":
-            # Generate filename
-            filename = generate_filename(city_name, year, month, day, doc_type)
-            
-            # Create output directory
-            output_base.mkdir(parents=True, exist_ok=True)
-            
-            # Save file
-            saved_path = output_base / filename
+        # Always save file to disk if it doesn't exist (even if duplicate in DB)
+        # Generate filename
+        filename = generate_filename(city_name, year, month, day, doc_type)
+        
+        # Create output directory
+        output_base.mkdir(parents=True, exist_ok=True)
+        
+        # Save file if it doesn't exist
+        saved_path = output_base / filename
+        if not saved_path.exists():
             with open(saved_path, "wb") as f:
                 f.write(content_bytes)
-            
-            result["saved_path"] = str(saved_path)
+        
+        result["saved_path"] = str(saved_path)
         
         return result
     
@@ -327,10 +327,8 @@ def main():
     # Determine output directory
     output_base_dir = args.outdir if args.outdir else config.get('output_dir', 'data/raw notes')
     
-    # Create timestamped output directory
-    now = datetime.now(timezone.utc)
-    timestamp = now.strftime("%Y-%m-%d_%H%M%S")
-    output_dir = Path(output_base_dir) / config['city_name'] / timestamp
+    # Create output directory directly in city folder (no timestamp subfolders)
+    output_dir = Path(output_base_dir) / config['city_name']
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Output directory: {output_dir}", file=sys.stderr)
@@ -381,7 +379,12 @@ def main():
     city_name = config['city_name']
     allowed_domains = config['allowed_domains']
     
-    for meeting in meetings:
+    # Filter to 2025 meetings only
+    target_year = 2025
+    meetings_2025 = [m for m in meetings if m.get('parsed_date') and m['parsed_date'][0] == target_year]
+    print(f"Filtering to {target_year} meetings: {len(meetings_2025)} out of {len(meetings)} total", file=sys.stderr)
+    
+    for meeting in meetings_2025:
         parsed_date = meeting['parsed_date']
         if not parsed_date:
             print(f"Warning: Could not parse date: {meeting['date_text']}", file=sys.stderr)

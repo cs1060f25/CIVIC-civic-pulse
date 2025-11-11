@@ -1,14 +1,14 @@
-id: "wichita_city_council"
+id: "great_bend_agenda_center"
 
 # The main page URL with the table of meetings
-page_url: "https://www.wichita.gov/AgendaCenter/Wichita-City-Council-Meetings-34"
+page_url: "https://www.greatbendks.net/AgendaCenter"
 
-# City name for filename generation (e.g., "Wichita", "Kansas City")
-city_name: "Wichita"
+# City name for filename generation
+city_name: "Great Bend"
 
 # Allowed domains for security
 allowed_domains:
-  - "wichita.gov"
+  - "greatbendks.net"
 
 # CSS selectors for extracting meeting data from the HTML table
 selectors:
@@ -31,5 +31,4 @@ output_dir: "data/raw notes"
 download_types:
   - "Agenda"
   - "Minutes"
-
 

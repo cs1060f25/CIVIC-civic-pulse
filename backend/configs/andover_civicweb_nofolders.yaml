@@ -1,0 +1,18 @@
+id: "andover_civicweb_nofolders"
+
+# Portal MeetingInformation page URL
+portal_url: "https://andoverks.civicweb.net/Portal/MeetingInformation.aspx?Id=5698"
+
+# City name for filename generation
+city_name: "Andover"
+
+# Target year to filter meetings
+target_year: 2025
+
+# Allowed domains for security
+allowed_domains:
+  - "andoverks.civicweb.net"
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+

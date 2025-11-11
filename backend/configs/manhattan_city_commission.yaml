@@ -1,8 +1,7 @@
 id: "manhattan_city_commission"
 
 # The main page URL with the table of meetings
-# Based on the structure, we'll need to find the specific City Commission page
-page_url: "https://www.manhattanks.gov/agendacenter/City-Commission-6"
+page_url: "https://www.manhattanks.gov/AgendaCenter/City-Commission-20"
 
 # City name for filename generation
 city_name: "Manhattan"

@@ -1,0 +1,23 @@
+id: "kansas_city_mo_legistar"
+
+# The main Legistar calendar page URL
+page_url: "https://kansascity.legistar.com/Calendar.aspx"
+
+# City name for filename generation
+city_name: "Kansas City"
+
+# Target year to filter meetings (optional)
+target_year: 2025
+
+# Allowed domains for security
+allowed_domains:
+  - "kansascity.legistar.com"
+
+# Filter for specific meeting types (optional)
+# Only download minutes for meetings whose name contains these terms
+meeting_filter:
+  - "Council"
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+

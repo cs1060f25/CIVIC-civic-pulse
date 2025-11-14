@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Frontend Next.js application
+  frontend:
+    build:
+      context: ./src/app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Mount backend data directory for database access
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db:ro
+    depends_on:
+      - ingestion
+      - processing
+    networks:
+      - civicpulse-network
+
+  # Ingestion module
+  ingestion:
+    build:
+      context: ./src/ingestion
+      dockerfile: Dockerfile
+    volumes:
+      # Mount backend directories for data and schema (configs are now in the image)
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - civicpulse-network
+    restart: unless-stopped
+
+  # Processing module
+  processing:
+    build:
+      context: ./src/processing
+      dockerfile: Dockerfile
+    volumes:
+      # Mount backend directories for processing input/output
+      - ../../backend/processing:/app/backend/processing
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CIVICPULSE_KEYWORDS=${CIVICPULSE_KEYWORDS:-}
+    networks:
+      - civicpulse-network
+    restart: unless-stopped
+
+  # LLM metadata parser
+  lm-parser:
+    build:
+      context: ./src/lm_parser
+      dockerfile: Dockerfile
+    volumes:
+      - ../../backend/processing:/app/backend/processing
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db:ro
+      - ../../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GOOGLE_API_KEY_PATH=/run/secrets/google_api_key.txt
+    depends_on:
+      - processing
+    networks:
+      - civicpulse-network
+    restart: unless-stopped
+
+networks:
+  civicpulse-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+  backend-configs:
+  backend-db:
+

@@ -1,36 +1,182 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CivicPulse Application
 
-## Getting Started
+This directory contains the CivicPulse application with modular architecture. The application consists of three main modules that can be deployed independently or together using Docker Compose.
 
-First, run the development server:
+## Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+civicpulse/
+├── docker-compose.yml      # Orchestrates all modules
+├── src/
+│   ├── app/                # Frontend Next.js module
+│   ├── ingestion/          # Ingestion module
+│   └── processing/         # Processing module
+└── README.md               # This file
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quick Start
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Using Docker Compose (Recommended)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The easiest way to run the entire pipeline:
 
-## Learn More
+```bash
+# From civicpulse directory
+docker-compose up --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+This will start all three modules:
+- **Frontend** (Next.js) on http://localhost:3000
+- **Ingestion** module (Python)
+- **Processing** module (Python)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Local Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For local development without Docker, see each module's README:
+- Frontend: `src/app/README.md`
+- Ingestion: `src/ingestion/README.md`
+- Processing: `src/processing/README.md`
 
-## Deploy on Vercel
+## Docker Compose Commands
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Start All Services
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker-compose up --build
+```
+
+### Start in Background
+
+```bash
+docker-compose up -d
+```
+
+### Stop Services
+
+```bash
+docker-compose down
+```
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f frontend
+docker-compose logs -f ingestion
+docker-compose logs -f processing
+```
+
+### Run Individual Services
+
+```bash
+# Only frontend
+docker-compose up frontend
+
+# Only ingestion
+docker-compose up ingestion
+
+# Only processing
+docker-compose up processing
+```
+
+### Rebuild Services
+
+```bash
+# Rebuild all
+docker-compose build
+
+# Rebuild specific service
+docker-compose build frontend
+```
+
+## Module Architecture
+
+Each module is self-contained with its own Dockerfile:
+
+1. **Frontend Module** (`src/app/`): Next.js application
+   - React components and UI
+   - API routes
+   - Database access layer
+
+2. **Ingestion Module** (`src/ingestion/`): Document ingestion service
+   - Config loading and validation
+   - PDF downloading and validation
+   - Database storage with duplicate prevention
+
+3. **Processing Module** (`src/processing/`): PDF processing service
+   - Text extraction from PDFs
+   - OCR for scanned documents
+   - Batch processing capabilities
+
+## Shared Resources
+
+All modules share access to:
+- **Database**: `../../backend/data/civicpulse.db`
+- **Configs**: `../../backend/configs/`
+- **Schema**: `../../backend/db/schema.sql`
+
+These are mounted as volumes in Docker Compose.
+
+## Development Workflow
+
+1. **Make changes** to a module
+2. **Rebuild** the Docker image: `docker-compose build <service-name>`
+3. **Restart** the service: `docker-compose restart <service-name>`
+4. **Test** the changes
+
+## Testing
+
+See [TESTING.md](./TESTING.md) for detailed testing instructions for the frontend module.
+
+For module-specific testing:
+- Frontend: `src/app/README.md`
+- Ingestion: `src/ingestion/README.md`
+- Processing: `src/processing/README.md`
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 3000 is already in use:
+```bash
+# Find the process
+netstat -ano | findstr :3000  # Windows
+lsof -i :3000                  # macOS/Linux
+
+# Or change port in docker-compose.yml
+```
+
+### Database Not Found
+
+Ensure the database is initialized:
+```bash
+# From project root
+sqlite3 backend/data/civicpulse.db < backend/db/schema.sql
+```
+
+### Services Not Starting
+
+Check logs:
+```bash
+docker-compose logs <service-name>
+```
+
+### Volume Mount Issues
+
+Ensure paths are correct in `docker-compose.yml`. Volumes are mounted relative to the `civicpulse/` directory.
+
+## Environment Variables
+
+Set in `docker-compose.yml` or `.env` file:
+
+- `CIVICPULSE_KEYWORDS`: Comma-separated keywords for processing module
+- `NODE_ENV`: Environment for frontend (production/development)
+
+## Additional Resources
+
+- [Main Project README](../../README.md) - Overall project overview
+- [Testing Guide](../../TESTING_GUIDE.md) - Comprehensive testing instructions
+- Module-specific READMEs in each `src/` subdirectory

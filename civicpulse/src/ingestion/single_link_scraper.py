@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""
+Single URL scraper that downloads, validates, and stores one PDF file.
+"""
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+
+# Add this module's parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Import existing helpers
+from config_loader import load_config
+from local_db import init_db, save_if_new
+
+
+def is_allowed_domain(host: str, allowed_domains: list) -> bool:
+    """
+    Check if a hostname matches an allowed domain (exact or subdomain).
+    
+    Args:
+        host: The hostname to check (e.g., "www.wichita.gov")
+        allowed_domains: List of allowed domains (e.g., ["wichita.gov"])
+        
+    Returns:
+        True if host matches or is a subdomain of any allowed domain
+        
+    Security Note:
+        Validates proper domain structure to prevent security bypasses.
+        - Only allows subdomains, not arbitrary suffixes
+        - Validates domain format (rejects malformed domains)
+        - Ensures base domain has proper structure (at least 2 parts for TLD)
+    """
+    host = host.lower()
+    
+    # Quick validation: reject empty or malformed domains
+    if not host or not host.replace(".", "").replace("-", "").isalnum():
+        return False
+    
+    # Validate base domain structure - must have at least 2 parts (name + TLD)
+    for allowed in allowed_domains:
+        allowed = allowed.lower()
+        allowed_parts = allowed.split(".")
+        
+        # Security: Reject if allowed domain is a bare TLD (e.g., "gov")
+        # This prevents "evil.gov" from matching when allowed_domains = ["gov"]
+        if len(allowed_parts) < 2:
+            continue  # Skip invalid allowed domain
+        
+        # Exact match
+        if host == allowed:
+            return True
+        
+        # For subdomain matches, verify proper domain structure
+        if host.endswith("." + allowed):
+            host_parts = host.split(".")
+            
+            # Host must have more parts than allowed domain to be a valid subdomain
+            # Example: www.wichita.gov (3 parts) > wichita.gov (2 parts) ✓
+            if len(host_parts) > len(allowed_parts):
+                # Additional security: ensure the subdomain part exists and is valid
+                # Extract the subdomain part (everything before the base domain)
+                subdomain = ".".join(host_parts[:-len(allowed_parts)])
+                
+                # Subdomain should be non-empty and contain valid characters
+                if subdomain and all(part and part.replace("-", "").isalnum() for part in subdomain.split(".")):
+                    return True
+    
+    return False
+
+
+def is_pdf_content(content_type: str, content_bytes: bytes) -> bool:
+    """
+    Check if the content is actually a PDF.
+    
+    Args:
+        content_type: Content-Type header value
+        content_bytes: First few bytes of the content
+        
+    Returns:
+        True if content appears to be a PDF
+    """
+    # Check Content-Type header
+    if content_type and "pdf" in content_type.lower():
+        return True
+    
+    # Check PDF magic bytes
+    if len(content_bytes) >= 5 and content_bytes[:5] == b"%PDF-":
+        return True
+    
+    return False
+
+
+def download_url(url: str, timeout: int = 20, max_size: int = 100 * 1024 * 1024) -> tuple:
+    """
+    Download content from a URL with size limit protection.
+    
+    Args:
+        url: URL to download
+        timeout: Timeout in seconds
+        max_size: Maximum allowed file size in bytes (default 100MB)
+        
+    Returns:
+        Tuple of (bytes, content_type_header_value)
+        
+    Raises:
+        ValueError: If file size exceeds max_size
+        Exception on network or download errors
+    """
+    req = Request(url)
+    req.add_header("User-Agent", "CivicPulse/1.0")
+    
+    with urlopen(req, timeout=timeout) as response:
+        content_type = response.headers.get("Content-Type", "")
+        
+        # Read content in chunks to avoid memory exhaustion and enforce size limits
+        chunks = []
+        total_size = 0
+        chunk_size = 8192  # 8KB chunks
+        
+        while True:
+            chunk = response.read(chunk_size)
+            if not chunk:
+                break
+            
+            total_size += len(chunk)
+            
+            # Check size limit before accumulating to prevent DoS
+            if total_size > max_size:
+                raise ValueError(
+                    f"File size ({total_size} bytes) exceeds maximum allowed size ({max_size} bytes). "
+                    f"This may be a denial-of-service attempt."
+                )
+            
+            chunks.append(chunk)
+        
+        # Combine all chunks into single byte string
+        content_bytes = b"".join(chunks)
+    
+    return content_bytes, content_type
+
+
+def get_backend_path() -> Path:
+    """Get the backend directory path relative to this module."""
+    # Try multiple possible locations:
+    # 1. Docker environment: /app/backend (when running in Docker)
+    # 2. Local development: civicpulse/src/ingestion/ -> ../../../backend
+    
+    current_dir = Path(__file__).resolve().parent
+    
+    # Check if we're in Docker (working directory is /app)
+    docker_backend = current_dir.parent / "backend"
+    if docker_backend.exists():
+        return docker_backend
+    
+    # Check if we're in local development (civicpulse/src/ingestion/)
+    local_backend = current_dir.parent.parent.parent / "backend"
+    if local_backend.exists():
+        return local_backend
+    
+    # Fallback: try relative to current working directory
+    cwd_backend = Path.cwd() / "backend"
+    if cwd_backend.exists():
+        return cwd_backend
+    
+    # Last resort: assume we're in /app (Docker)
+    return current_dir.parent / "backend"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Download and store a single PDF file"
+    )
+    parser.add_argument("--config", required=True, help="Path to config YAML (filename or full path)")
+    parser.add_argument("--source_id", required=True, help="Source identifier")
+    parser.add_argument("--url", required=True, help="URL to download")
+    parser.add_argument("--outdir", default="data/sandbox", help="Output directory (relative to backend)")
+    parser.add_argument("--filename", help="Optional filename override")
+    
+    args = parser.parse_args()
+    
+    result = {
+        "status": "error",
+        "document_id": None,
+        "bytes": 0,
+        "url": args.url,
+        "saved_path": None,
+        "reason": None
+    }
+    
+    try:
+        backend_path = get_backend_path()
+        
+        # Initialize database if needed
+        db_path = backend_path / "data" / "civicpulse.db"
+        if not db_path.exists():
+            init_db()
+        
+        # Load config
+        config = load_config(args.config)
+        
+        # Validate domain
+        parsed_url = urlparse(args.url)
+        host = parsed_url.netloc
+        if not is_allowed_domain(host, config["allowed_domains"]):
+            result["reason"] = f"Domain '{host}' not in allowed domains: {config['allowed_domains']}"
+            print(json.dumps(result))
+            sys.exit(1)
+        
+        # Download
+        content_bytes, content_type = download_url(args.url)
+        
+        # Check if PDF
+        if not is_pdf_content(content_type, content_bytes):
+            result["reason"] = "not a PDF"
+            print(json.dumps(result))
+            sys.exit(1)
+        
+        # Store in database
+        db_result = save_if_new(
+            source_id=args.source_id,
+            file_url=args.url,
+            content_bytes=content_bytes
+        )
+        
+        result["status"] = db_result["status"]
+        result["document_id"] = db_result["document_id"]
+        result["bytes"] = len(content_bytes)
+        
+        # Save file if new
+        if db_result["status"] == "created":
+            # Determine filename
+            if args.filename:
+                filename = args.filename
+            else:
+                filename = Path(urlparse(args.url).path).name or "document.pdf"
+            
+            # Generate timestamped filename
+            now = datetime.now(timezone.utc)
+            timestamp = now.strftime("%Y-%m-%d_%H%M%S")
+            timestamped_filename = f"{timestamp}_{filename}"
+            
+            # Create output directory relative to backend
+            outdir = backend_path / args.outdir / args.source_id
+            outdir.mkdir(parents=True, exist_ok=True)
+            
+            # Save file
+            saved_path = outdir / timestamped_filename
+            with open(saved_path, "wb") as f:
+                f.write(content_bytes)
+            
+            result["saved_path"] = str(saved_path)
+        
+        # Print JSON result
+        print(json.dumps(result))
+        
+        # Exit code: 0 for created/duplicate, 1 for error
+        sys.exit(0)
+    
+    except Exception as e:
+        result["reason"] = str(e)
+        print(json.dumps(result))
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+

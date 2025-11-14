@@ -1,0 +1,19 @@
+id: "andover_civicweb"
+
+# Base host and entry (root folder) URL for Andover's CivicWeb library
+base_url: "https://andoverks.civicweb.net"
+root_folder_url: "/filepro/documents/4620/"
+
+# City name for output directory structure
+city_name: "Andover"
+
+# Target year to scrape
+target_year: 2025
+
+# Allowed domains for basic validation
+allowed_domains:
+  - "andoverks.civicweb.net"
+
+# Output directory relative to backend/
+output_dir: "data/raw notes"
+

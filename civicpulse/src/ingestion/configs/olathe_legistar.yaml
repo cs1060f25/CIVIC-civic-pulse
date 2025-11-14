@@ -1,0 +1,25 @@
+id: "olathe_legistar"
+
+# The main Legistar department detail page URL
+page_url: "https://olatheks.legistar.com/DepartmentDetail.aspx?ID=37138&GUID=BD3D93FA-EA9D-4DC3-A7E5-E57438E92F54&R=891b74f5-5a23-43e6-bbaf-536f8919931a"
+
+# City name for filename generation
+city_name: "Olathe"
+
+# Target year to filter meetings (optional)
+target_year: 2025
+
+# Allowed domains for security
+allowed_domains:
+  - "olatheks.legistar.com"
+
+# Filter for specific meeting types (optional)
+# Leave empty or omit to download all meetings with minutes
+# meeting_filter: []
+
+# Default meeting name when page doesn't have a Name column (Olathe uses dates in first column)
+default_meeting_name: "City Council"
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+

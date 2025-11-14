@@ -1,0 +1,34 @@
+id: "great_bend_agenda_center"
+
+# The main page URL with the table of meetings
+page_url: "https://www.greatbendks.net/AgendaCenter"
+
+# City name for filename generation
+city_name: "Great Bend"
+
+# Allowed domains for security
+allowed_domains:
+  - "greatbendks.net"
+
+# CSS selectors for extracting meeting data from the HTML table
+selectors:
+  # Selector for each table row containing a meeting
+  meeting_row: "table tbody tr"
+  
+  # Selector for the date within each row (first column typically)
+  date_selector: "td:first-child"
+  
+  # Selector for the Agenda link (in the Download column)
+  agenda_link: 'td:nth-child(4) a[href*="ViewFile/Agenda"]'
+  
+  # Selector for the Minutes link (in the Minutes column)
+  minutes_link: 'td:nth-child(2) a[href*="ViewFile/Minutes"]'
+
+# Output directory (relative to backend/)
+output_dir: "data/raw notes"
+
+# Document types to download
+download_types:
+  - "Agenda"
+  - "Minutes"
+

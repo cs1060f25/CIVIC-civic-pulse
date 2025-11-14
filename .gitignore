@@ -66,3 +66,6 @@ Thumbs.db
 *.temp
 .cache/
 
+# Processing output data (should not be tracked)
+backend/processing/output/**/test_txt_files-*/
+

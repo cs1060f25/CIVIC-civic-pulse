@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS document_metadata (
     extracted_text TEXT DEFAULT '[]',         -- Sample paragraphs from document
     pdf_preview TEXT DEFAULT '[]',            -- Page preview snippets
     
+    -- Full document text (complete extracted text from PDF)
+    full_text TEXT,                           -- Full text content of the document
+    
     -- Attachments (JSON array of objects)
     attachments TEXT DEFAULT '[]',            -- e.g., '[{"id":"a1","title":"Agenda","type":"Agenda","pageCount":15}]'
     

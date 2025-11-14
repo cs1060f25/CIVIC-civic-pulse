@@ -127,6 +127,25 @@ def read_processing_jsons(input_dir: Path) -> List[Tuple[Path, Dict[str, Any]]]:
 	return results
 
 
+def read_txt_files(input_dir: Path) -> List[Tuple[Path, str]]:
+	"""Read .txt files from the input directory and return (path, full_text) tuples."""
+	results: List[Tuple[Path, str]] = []
+	for root, _, files in os.walk(str(input_dir)):
+		for f in files:
+			if not f.lower().endswith(".txt"):
+				continue
+			p = Path(root) / f
+			try:
+				with open(p, "r", encoding="utf-8", errors="replace") as fh:
+					full_text = fh.read()
+				if full_text.strip():  # Only include non-empty files
+					results.append((p, full_text))
+			except Exception as e:
+				print(f"Warning: Failed to read {p}: {e}", file=sys.stderr)
+				continue
+	return results
+
+
 def build_context_from_processing(obj: Dict[str, Any], max_chars: int = 100000) -> str:
 	# Prefer a concatenation of first few pages or representative segments
 	per_page = obj.get("per_page") or []
@@ -139,6 +158,13 @@ def build_context_from_processing(obj: Dict[str, Any], max_chars: int = 100000) 
 	if len(context) > max_chars:
 		return context[:max_chars]
 	return context
+
+
+def build_context_from_txt(full_text: str, max_chars: int = 100000) -> str:
+	"""Build context from full text file, using first portion for LLM analysis."""
+	if len(full_text) > max_chars:
+		return full_text[:max_chars]
+	return full_text
 
 
 def sha256_str(s: str) -> str:
@@ -158,6 +184,7 @@ def insert_document_records(
 	content_hash: str,
 	bytes_size: int,
 	meta: DocumentMetadataSchema,
+	full_text: Optional[str] = None,
 ) -> None:
 	cur = conn.cursor()
 	cur.execute(
@@ -172,8 +199,8 @@ def insert_document_records(
 		INSERT INTO document_metadata (
 		  document_id, title, entity, jurisdiction, counties, meeting_date,
 		  doc_types, topics, impact, stage, keyword_hits, extracted_text,
-		  pdf_preview, attachments
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		  pdf_preview, attachments, full_text
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		""",
 		(
 			doc_id,
@@ -190,6 +217,7 @@ def insert_document_records(
 			json.dumps(meta.extracted_text, ensure_ascii=False),
 			json.dumps(meta.pdf_preview, ensure_ascii=False),
 			json.dumps(meta.attachments, ensure_ascii=False),
+			full_text,  # Store full text content
 		),
 	)
 	conn.commit()
@@ -208,12 +236,13 @@ def resolve_bytes_for_pdf(processing_json_path: Path, processing_obj: Dict[str, 
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Parse local government documents into structured metadata and write to SQLite.")
-	parser.add_argument("--input_dir", default=DEFAULT_INPUT_DIR, help="Directory containing processing JSON outputs")
+	parser.add_argument("--input_dir", default=DEFAULT_INPUT_DIR, help="Directory containing processing JSON outputs or .txt files")
 	parser.add_argument("--db_path", default=DEFAULT_DB_PATH, help="Path to SQLite database file")
 	parser.add_argument("--model", default=DEFAULT_MODEL, help="Google GenAI model name, e.g., gemini-2.5-flash")
 	parser.add_argument("--source_id", default="local_processing", help="Source ID to attribute documents to")
 	parser.add_argument("--url_prefix", default="local:", help="Prefix to attach to file paths for file_url")
 	parser.add_argument("--limit", type=int, default=0, help="Optional limit on number of files to process")
+	parser.add_argument("--mode", choices=["json", "txt", "auto"], default="auto", help="Processing mode: json (JSON files), txt (.txt files), or auto (both)")
 	args = parser.parse_args()
 
 	# API key (use GOOGLE_API_KEY only)
@@ -226,24 +255,52 @@ def main() -> None:
 	db_path = Path(args.db_path)
 	ensure_db(db_path)
 
-	items = read_processing_jsons(input_dir)
-	if args.limit and args.limit > 0:
-		items = items[: args.limit]
-	if not items:
-		print(f"No processing JSON files found in {input_dir}", flush=True)
-		return
+	# Ensure full_text column exists (for existing databases)
+	conn = sqlite3.connect(str(db_path))
+	try:
+		cur = conn.cursor()
+		# Check if full_text column exists
+		cur.execute("PRAGMA table_info(document_metadata)")
+		columns = [row[1] for row in cur.fetchall()]
+		if "full_text" not in columns:
+			print("Adding full_text column to document_metadata table...", flush=True)
+			cur.execute("ALTER TABLE document_metadata ADD COLUMN full_text TEXT")
+			conn.commit()
+	except Exception as e:
+		print(f"Warning: Could not ensure full_text column exists: {e}", file=sys.stderr)
+	finally:
+		conn.close()
 
 	chain = build_llm_chain(args.model)
 
+	# Process JSON files if mode is json or auto
+	json_items = []
+	if args.mode in ["json", "auto"]:
+		json_items = read_processing_jsons(input_dir)
+		if args.limit and args.limit > 0:
+			json_items = json_items[: args.limit]
+
+	# Process .txt files if mode is txt or auto
+	txt_items = []
+	if args.mode in ["txt", "auto"]:
+		txt_items = read_txt_files(input_dir)
+		if args.limit and args.limit > 0:
+			txt_items = txt_items[: args.limit]
+
+	if not json_items and not txt_items:
+		print(f"No processing JSON or .txt files found in {input_dir}", flush=True)
+		return
+
 	conn = sqlite3.connect(str(db_path))
 	try:
-		for idx, (p, obj) in enumerate(items, 1):
+		# Process JSON files
+		for idx, (p, obj) in enumerate(json_items, 1):
 			context = build_context_from_processing(obj)
 			if not context:
-				print(f"[{idx}/{len(items)}] Skip (empty context): {p.name}", flush=True)
+				print(f"[JSON {idx}/{len(json_items)}] Skip (empty context): {p.name}", flush=True)
 				continue
 
-			print(f"[{idx}/{len(items)}] Parsing: {p.name}", flush=True)
+			print(f"[JSON {idx}/{len(json_items)}] Parsing: {p.name}", flush=True)
 			meta: DocumentMetadataSchema = chain.invoke({"context": context})
 
 			# Build core document record data
@@ -264,11 +321,63 @@ def main() -> None:
 					content_hash=content_hash,
 					bytes_size=bytes_size,
 					meta=meta,
+					full_text=None,  # JSON mode doesn't have full text
 				)
 				print(f"  -> inserted document {doc_id[:12]}...", flush=True)
 			except sqlite3.IntegrityError as e:
 				# Likely duplicate by content_hash or existing metadata; skip
 				print(f"  -> skipped (duplicate or constraint): {e}", flush=True)
+
+		# Process .txt files
+		for idx, (p, full_text) in enumerate(txt_items, 1):
+			context = build_context_from_txt(full_text)
+			if not context:
+				print(f"[TXT {idx}/{len(txt_items)}] Skip (empty context): {p.name}", flush=True)
+				continue
+
+			print(f"[TXT {idx}/{len(txt_items)}] Parsing: {p.name}", flush=True)
+			meta: DocumentMetadataSchema = chain.invoke({"context": context})
+
+			# Build core document record data
+			content_hash = sha256_str(full_text)
+			bytes_size = len(full_text.encode("utf-8"))
+
+			# Use deterministic ID by hash for idempotency
+			doc_id = content_hash
+			try:
+				file_rel = str(p.relative_to(input_dir))
+			except ValueError:
+				# Path is not relative to input_dir, use just the filename
+				file_rel = p.name
+			file_url = f"{args.url_prefix}{file_rel}"
+
+			try:
+				insert_document_records(
+					conn=conn,
+					doc_id=doc_id,
+					source_id=args.source_id,
+					file_url=file_url,
+					content_hash=content_hash,
+					bytes_size=bytes_size,
+					meta=meta,
+					full_text=full_text,  # Store full text content
+				)
+				print(f"  -> inserted document {doc_id[:12]}... with full text ({len(full_text)} chars)", flush=True)
+			except sqlite3.IntegrityError as e:
+				# Likely duplicate by content_hash; try to update full_text if missing
+				try:
+					cur = conn.cursor()
+					cur.execute("SELECT full_text FROM document_metadata WHERE document_id = ?", (doc_id,))
+					existing = cur.fetchone()
+					if existing and existing[0] is None:
+						# Update existing record with full text
+						cur.execute("UPDATE document_metadata SET full_text = ? WHERE document_id = ?", (full_text, doc_id))
+						conn.commit()
+						print(f"  -> updated existing document {doc_id[:12]}... with full text ({len(full_text)} chars)", flush=True)
+					else:
+						print(f"  -> skipped (duplicate): {e}", flush=True)
+				except Exception as update_err:
+					print(f"  -> skipped (duplicate or update failed): {update_err}", flush=True)
 	except Exception as e:
 		print(f"Error: {e}", file=sys.stderr)
 		raise

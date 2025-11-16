@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { randomUUID } from "crypto";
-import { DocumentRow, FeedItem, parseJSON, transformRow } from "@/lib/document-utils";
+import { DocumentRow, transformRow } from "@/lib/document-utils";
 
 // GET /api/documents
 export async function GET(request: NextRequest) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       WHERE 1=1
     `;
     
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     
     // Text search
     if (query) {
@@ -141,10 +141,11 @@ export async function GET(request: NextRequest) {
       },
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/documents error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error", message: error.message },
+      { error: "Internal server error", message: errorMessage },
       { status: 500 }
     );
   }
@@ -254,10 +255,11 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(document, { status: 201 });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/documents error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error", message: error.message },
+      { error: "Internal server error", message: errorMessage },
       { status: 500 }
     );
   }

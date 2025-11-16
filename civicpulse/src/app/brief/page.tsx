@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppState } from "@/lib/state";
 import type { FeedItem } from "@/lib/types";
-import { Button, Card, Badge } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import Link from "next/link";
 
 // Mock documents for testing (same as in search page)

@@ -1,5 +1,5 @@
 import sys, pathlib, pymupdf, os
-import logging, io, csv, json, argparse
+import logging, io, csv, argparse
 from PIL import Image
 import pytesseract
 
@@ -76,23 +76,6 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
                 logging.exception(f"Failed writing text for {pdf_path}")
                 continue
 
-            # write structured JSON alongside text
-            out_json_path = os.path.join(str(output_dir), file.split(".")[0] + ".json")
-            try:
-                json_payload = {
-                    "file": os.path.relpath(pdf_path, str(pdf_dir)),
-                    "pages": result["text_pages"] + result["ocr_pages"],
-                    "text_pages": result["text_pages"],
-                    "ocr_pages": result["ocr_pages"],
-                    "per_page": result["per_page"],
-                }
-                with open(out_json_path, "w", encoding="utf-8") as jf:
-                    json.dump(json_payload, jf, ensure_ascii=False, indent=2)
-                logging.info(f"Wrote JSON for {pdf_path} to {out_json_path}")
-            except Exception:
-                logging.exception(f"Failed writing JSON for {pdf_path}")
-                continue
-
             total_chars = len(result["text"])
             hits = {}
             if keywords:
@@ -101,7 +84,6 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
                     hits[k] = low.count(k.lower())
             summary_rows.append({
                 "file": os.path.relpath(pdf_path, str(pdf_dir)),
-                "pages": json_payload["pages"],
                 "text_pages": result["text_pages"],
                 "ocr_pages": result["ocr_pages"],
                 "total_chars": total_chars,
@@ -123,7 +105,7 @@ def process_pdfs(pdf_dir: pathlib.Path, output_dir: pathlib.Path, keywords: list
 
 def run_from_env():
     # Defaults for script usage
-    pdf_dir = base_dir / "test_files"
+    pdf_dir = base_dir / "../data/raw notes/Wichita"
     output_dir = base_dir / "output"
     keywords_env = os.getenv("CIVICPULSE_KEYWORDS", "")
     keywords = [k.strip() for k in keywords_env.split(",") if k.strip()]
@@ -132,8 +114,8 @@ def run_from_env():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Batch PDF text extraction with OCR fallback")
-    parser.add_argument("--src", type=str, default=str(base_dir / "test_files"), help="Source directory containing PDFs")
-    parser.add_argument("--out", type=str, default=str(base_dir / "output"), help="Output directory for .txt/.json and logs")
+    parser.add_argument("--src", type=str, default=str(base_dir / "../data/raw notes/Wichita"), help="Source directory containing PDFs")
+    parser.add_argument("--out", type=str, default=str(base_dir / "output"), help="Output directory for .txt and logs")
     parser.add_argument("--kw", type=str, default=os.getenv("CIVICPULSE_KEYWORDS", ""), help="Comma-separated keywords to count")
     args = parser.parse_args()
 

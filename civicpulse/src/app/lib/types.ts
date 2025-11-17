@@ -50,11 +50,22 @@ export interface UserPreferences {
   impactThreshold: ImpactLevel;
 }
 
+export interface SavedBrief {
+  id: string;
+  name: string;
+  description: string;
+  itemIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  documentCount: number;
+}
+
 export interface AppState {
   preferences: UserPreferences | null;
   savedItemIds: string[];
   followedItemIds: string[];
   briefItemIds: string[];
+  savedBriefs: SavedBrief[];
 }
 
 // API Response Types

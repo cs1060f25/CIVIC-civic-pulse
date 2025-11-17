@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AppState, UserPreferences } from "@/lib/types";
+import type { AppState, UserPreferences, SavedBrief } from "@/lib/types";
 
 const STORAGE_KEY = "civicpulse_app_state_v1";
 
@@ -10,6 +10,7 @@ const defaultState: AppState = {
   savedItemIds: [],
   followedItemIds: [],
   briefItemIds: [],
+  savedBriefs: [],
 };
 
 type AppContextType = {
@@ -19,6 +20,10 @@ type AppContextType = {
   toggleFollowed: (id: string) => void;
   addToBrief: (id: string) => void;
   removeFromBrief: (id: string) => void;
+  saveBrief: (name: string, description: string) => void;
+  loadBrief: (briefId: string) => void;
+  deleteBrief: (briefId: string) => void;
+  clearBrief: () => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,11 +35,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as AppState;
-        setState(parsed);
+        const parsed = JSON.parse(raw) as Partial<AppState>;
+        // Ensure all required properties exist with proper defaults
+        setState({
+          ...defaultState,
+          ...parsed,
+          preferences: parsed.preferences || defaultState.preferences,
+          savedItemIds: parsed.savedItemIds || defaultState.savedItemIds,
+          followedItemIds: parsed.followedItemIds || defaultState.followedItemIds,
+          briefItemIds: parsed.briefItemIds || defaultState.briefItemIds,
+          savedBriefs: parsed.savedBriefs || defaultState.savedBriefs,
+        });
       }
     } catch {
-      // ignore
+      // If localStorage is corrupted, reset to default state
+      setState(defaultState);
     }
   }, []);
 
@@ -75,6 +90,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...s,
         briefItemIds: s.briefItemIds.filter((x) => x !== id),
       })),
+    saveBrief: (name: string, description: string) => {
+      const newBrief: SavedBrief = {
+        id: `brief-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name,
+        description,
+        itemIds: [...state.briefItemIds],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        documentCount: state.briefItemIds.length,
+      };
+      setState((s) => ({
+        ...s,
+        savedBriefs: [...s.savedBriefs, newBrief],
+      }));
+    },
+    loadBrief: (briefId: string) => {
+      const brief = state.savedBriefs.find((b) => b.id === briefId);
+      if (brief) {
+        setState((s) => ({
+          ...s,
+          briefItemIds: [...brief.itemIds],
+        }));
+      }
+    },
+    deleteBrief: (briefId: string) => {
+      setState((s) => ({
+        ...s,
+        savedBriefs: s.savedBriefs.filter((brief) => brief.id !== briefId),
+      }));
+    },
+    clearBrief: () => {
+      setState((s) => ({
+        ...s,
+        briefItemIds: [],
+      }));
+    },
   }), [state]);
 
   return <AppContext.Provider value={api}>{children}</AppContext.Provider>;

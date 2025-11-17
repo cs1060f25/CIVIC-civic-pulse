@@ -11,11 +11,22 @@ export interface UserPreferences {
   impactThreshold: "Low" | "Medium" | "High";
 }
 
+export interface SavedBrief {
+  id: string;
+  name: string;
+  description: string;
+  itemIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  documentCount: number;
+}
+
 export interface AppState {
   preferences: UserPreferences;
   savedItemIds: string[];
   followedItemIds: string[];
   briefItemIds: string[];
+  savedBriefs: SavedBrief[];
 }
 
 // Default preferences
@@ -33,6 +44,7 @@ const defaultState: AppState = {
   savedItemIds: [],
   followedItemIds: [],
   briefItemIds: [],
+  savedBriefs: [],
 };
 
 // Storage key for localStorage
@@ -46,6 +58,10 @@ const AppContext = createContext<{
   toggleFollowed: (id: string) => void;
   addToBrief: (id: string) => void;
   removeFromBrief: (id: string) => void;
+  saveBrief: (name: string, description: string) => void;
+  loadBrief: (briefId: string) => void;
+  deleteBrief: (briefId: string) => void;
+  clearBrief: () => void;
 } | null>(null);
 
 // Provider component
@@ -65,6 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...defaultPreferences,
             ...parsedState.preferences,
           },
+          savedBriefs: parsedState.savedBriefs || [],
         });
       }
     } catch (error) {
@@ -119,6 +136,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const saveBrief = (name: string, description: string) => {
+    const newBrief: SavedBrief = {
+      id: `brief-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      description,
+      itemIds: [...state.briefItemIds],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      documentCount: state.briefItemIds.length,
+    };
+
+    setState(prev => ({
+      ...prev,
+      savedBriefs: [...prev.savedBriefs, newBrief],
+    }));
+  };
+
+  const loadBrief = (briefId: string) => {
+    const brief = state.savedBriefs.find(b => b.id === briefId);
+    if (brief) {
+      setState(prev => ({
+        ...prev,
+        briefItemIds: [...brief.itemIds],
+      }));
+    }
+  };
+
+  const deleteBrief = (briefId: string) => {
+    setState(prev => ({
+      ...prev,
+      savedBriefs: prev.savedBriefs.filter(brief => brief.id !== briefId),
+    }));
+  };
+
+  const clearBrief = () => {
+    setState(prev => ({
+      ...prev,
+      briefItemIds: [],
+    }));
+  };
+
   return (
     <AppContext.Provider value={{
       state,
@@ -127,6 +185,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleFollowed,
       addToBrief,
       removeFromBrief,
+      saveBrief,
+      loadBrief,
+      deleteBrief,
+      clearBrief,
     }}>
       {children}
     </AppContext.Provider>

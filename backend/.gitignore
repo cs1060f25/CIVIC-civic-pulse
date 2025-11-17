@@ -1,8 +1,15 @@
 #testing
 **/*.pdf
+**/*.log
+**/*.csv
 !data/raw notes/Wichita/*.pdf
 **/*.txt
 **/*.json
+
+**/processing/output/
+**/processing/output/logs/
+**/processing/output/wichita/
+**/logs/
 
 # Database files
 *.db

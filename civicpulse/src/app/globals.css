@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f1220; /* deep indigo night */
+  --background: #0f1220; /* deep indigo night bg */
   --foreground: #eef2ff; /* soft indigo-50 */
   --muted: #9aa3b2; /* slate-400 */
   --surface: #12162a; /* slightly lighter than bg */

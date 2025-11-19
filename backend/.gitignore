@@ -6,6 +6,7 @@
 
 # Database files
 *.db
+!db/civicpulse.db
 *.db-journal
 *.db-wal
 *.db-shm

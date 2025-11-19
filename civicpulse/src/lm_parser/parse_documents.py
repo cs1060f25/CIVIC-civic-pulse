@@ -3,6 +3,8 @@ import sys
 import argparse
 import json
 import hashlib
+import re
+import csv
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -26,9 +28,52 @@ DEFAULT_INPUT_DIR = os.getenv(
 )
 DEFAULT_DB_PATH = os.getenv(
 	"CIVICPULSE_DB_PATH",
-	str(get_backend_path() / "data" / "civicpulse.db"),
+	str(get_backend_path() / "db" / "civicpulse.db"),
 )
 DEFAULT_MODEL = os.getenv("GENAI_MODEL", "gemini-2.5-flash")
+
+
+def load_topics_from_csv(csv_path: Path) -> List[str]:
+	"""Load topic labels from topics.csv file."""
+	topics = []
+	try:
+		with open(csv_path, "r", encoding="utf-8") as f:
+			reader = csv.DictReader(f)
+			for row in reader:
+				topic = row.get("topic", "").strip()
+				if topic:
+					topics.append(topic)
+	except FileNotFoundError:
+		print(f"Warning: Topics CSV not found at {csv_path}. Using default topics.", file=sys.stderr)
+		# Return default topics if CSV not found
+		return [
+			"taxes_and_budget", "housing_and_zoning", "public_welfare", "transportation",
+			"utilities", "public_safety", "emergency_services", "economic_development",
+			"parks_and_green_spaces", "education", "sustainability", "equity_and_civil_rights",
+			"digital_access", "oversight_and_transparency", "other"
+		]
+	return topics
+
+
+# Load topics from CSV - try multiple possible paths
+def get_topics_csv_path() -> Path:
+	"""Get the path to topics.csv, trying multiple locations."""
+	# Try Docker path first (when running in container)
+	docker_path = Path("/app/backend/data/topics.csv")
+	if docker_path.exists():
+		return docker_path
+	# Try the standard location (when running locally)
+	backend_path = get_backend_path()
+	csv_path = backend_path / "data" / "topics.csv"
+	if csv_path.exists():
+		return csv_path
+	# Fall back to Docker path (will trigger warning if not found)
+	return docker_path
+
+TOPICS_CSV_PATH = get_topics_csv_path()
+AVAILABLE_TOPICS = load_topics_from_csv(TOPICS_CSV_PATH)
+# Separate the 14 standard topics from "other"
+STANDARD_TOPICS = [t for t in AVAILABLE_TOPICS if t != "other"]
 
 
 # Pydantic schema mirroring document_metadata table
@@ -42,9 +87,10 @@ class DocumentMetadataSchema(BaseModel):
 	topics: List[str] = Field(default_factory=list)
 	impact: str = "Low"  # Low | Medium | High
 	stage: Optional[str] = None  # Work Session | Hearing | Vote | Adopted | Draft
-	keyword_hits: Dict[str, int] = Field(default_factory=dict)
+	keyword_hits: Dict[str, Dict[str, int]] = Field(default_factory=dict)  # {topic: {keyword: count}}
 	extracted_text: List[str] = Field(default_factory=list)  # sample paragraphs
 	pdf_preview: List[str] = Field(default_factory=list)  # optional page snippets
+	summary: Optional[str] = None  # 1-3 sentence summary of the entire document
 	attachments: List[Dict[str, Any]] = Field(default_factory=list)
 
 	@field_validator("meeting_date")
@@ -68,29 +114,48 @@ class DocumentMetadataSchema(BaseModel):
 		if v not in allowed:
 			return "Low"
 		return v
+	
+	@field_validator("topics")
+	@classmethod
+	def validate_topics(cls, v: List[str]) -> List[str]:
+		"""Ensure topics are from the available list, default to 'other' if empty or invalid."""
+		if not v:
+			return ["other"]
+		# Filter to only valid topics, default to "other" if none valid
+		valid_topics = [t for t in v if t in AVAILABLE_TOPICS]
+		if not valid_topics:
+			return ["other"]
+		return valid_topics
 
 
 SYSTEM_INSTRUCTIONS = (
-	"You analyze local government PDFs (agendas, minutes, ordinances, staff reports). "
+	"You analyze local government documents (agendas, minutes, etc.) from Kansas. "
 	"Return a concise JSON object with metadata for search and UI. "
-	"Only use information present in the provided text. If unknown, omit or leave null."
+	"Use information from both the filename and document text."
 )
 
 HUMAN_TEMPLATE = (
 	"Extract structured metadata from the following document text.\n\n"
+	"Filename Information:\n"
+	"- Filename: {filename}\n"
+	"- The filename follows the pattern: {{City}}_{{Date}}_{{Type}}.txt\n"
+	"- Date format in filename is MM-DD-YYYY or MM_DD_YYYY\n"
+	"Available Topic Labels (use these exact labels):\n"
+	"{available_topics}\n\n"
 	"Return a JSON object strictly matching this schema: {format_instructions}\n\n"
 	"Guidelines:\n"
-	"- title: short human-readable title for the document.\n"
-	"- entity: board/commission/department, e.g., \"Johnson County Planning Board\".\n"
-	"- jurisdiction: county and state, e.g., \"Johnson County, KS\".\n"
-	"- counties: list of county names mentioned or implied by jurisdiction.\n"
-	"- meeting_date: ISO date YYYY-MM-DD, if present.\n"
-	"- doc_types: one or more of [Agenda, Minutes, Ordinance, Staff Memo, Packet, Resolution, Hearing Notice, Draft].\n"
-	"- topics: relevant themes like [zoning, solar, land use, tax, budget].\n"
+	"- title: short human-readable title for the document (can use filename info).\n"
+	"- entity: board/commission/department, e.g., \"Wichita City Council\" or \"Johnson County Planning Board\".\n"
+	"- jurisdiction: city/county and state, e.g., \"Wichita, KS\" or \"Johnson County, KS\". Use filename city if available.\n"
+	"- counties: list of county names. For Kansas cities, infer the county (e.g., Wichita is in Sedgwick County).\n"
+	"- meeting_date: ISO date YYYY-MM-DD. Extract from filename date if present, or from document text.\n"
+	"- doc_types: one or more of [Agenda, Minutes, Ordinance, Staff Memo, Packet, Resolution, Hearing Notice, Draft]. Use filename type if available.\n"
+	"- topics: select one or more topic labels from the available topics list above. A document can have multiple topics. If no topics match, use [\"other\"]. Use the exact topic label names (e.g., \"housing_and_zoning\", \"taxes_and_budget\").\n"
 	"- impact: one of Low, Medium, High based on policy significance.\n"
 	"- stage: one of [Work Session, Hearing, Vote, Adopted, Draft] if indicated.\n"
-	"- keyword_hits: map of salient terms to approximate counts (e.g., {{\"solar\": 3}}).\n"
-	"- extracted_text: 1-3 short representative paragraphs or bullet points.\n"
+	"- keyword_hits: map of topic labels (from the 14 standard topics, NOT \"other\") to related keywords and their counts. For each topic that applies to the document, identify relevant keywords/n-grams related to that topic and count their occurrences. Format: {{\"education\": {{\"curriculum\": 5, \"K-12\": 3, \"school district\": 2}}, \"housing_and_zoning\": {{\"zoning\": 4, \"residential\": 2}}}}. Only include topics that are in the document's topics list. Do not include \"other\" in keyword_hits.\n"
+	"- extracted_text: 1-3 short representative sentences or paragraphs from the document.\n"
+	"- summary: a 1-3 sentence summary of the entire document's main content and purpose.\n"
 	"- pdf_preview, attachments: optional; include if inferrable.\n\n"
 	"Document Text:\n"
 	"----------------\n"
@@ -99,15 +164,59 @@ HUMAN_TEMPLATE = (
 )
 
 
+def parse_filename(filename: str) -> Dict[str, Optional[str]]:
+	"""
+	Parse filename in format: {City}_{Date}_{Type}.txt
+	Date format: MM-DD-YYYY or MM_DD_YYYY (e.g., "01-07-2025" or "01_07_2025")
+	Examples: "Wichita_01-07-2025_Minutes.txt", "Wichita_01_07_2025_Agenda.txt"
+	Returns dict with city, date (YYYY-MM-DD), and doc_type
+	"""
+	result = {"city": None, "date": None, "doc_type": None}
+	
+	# Remove .txt extension
+	base_name = filename.replace(".txt", "").strip()
+	
+	# Pattern: City_MM-DD-YYYY_Type or City_MM_DD_YYYY_Type
+	# Match: Wichita_01-07-2025_Minutes or Wichita_01_07_2025_Agenda
+	pattern = r"^([^_]+)_(\d{2})[-_](\d{2})[-_](\d{4})_([^_]+(?:_[^_]+)*)$"
+	
+	match = re.match(pattern, base_name)
+	if match:
+		city = match.group(1)
+		month = match.group(2)
+		day = match.group(3)
+		year = match.group(4)
+		doc_type = match.group(5).strip()
+		
+		result["city"] = city
+		result["date"] = f"{year}-{month}-{day}"
+		
+		# Normalize doc_type - handle variations like "Final City Council Agenda"
+		doc_type_lower = doc_type.lower()
+		if "agenda" in doc_type_lower:
+			result["doc_type"] = "Agenda"
+		elif "minutes" in doc_type_lower:
+			result["doc_type"] = "Minutes"
+		else:
+			result["doc_type"] = doc_type
+	
+	return result
+
+
 def build_llm_chain(model_name: str):
 	llm = ChatGoogleGenerativeAI(model=model_name, temperature=0.2)
 	parser = JsonOutputParser(pydantic_object=DocumentMetadataSchema)
+	# Format available topics as a readable list
+	topics_list = ", ".join([f'"{t}"' for t in AVAILABLE_TOPICS])
 	prompt = ChatPromptTemplate.from_messages(
 		[
 			("system", SYSTEM_INSTRUCTIONS),
 			("human", HUMAN_TEMPLATE),
 		]
-	).partial(format_instructions=parser.get_format_instructions())
+	).partial(
+		format_instructions=parser.get_format_instructions(),
+		available_topics=topics_list
+	)
 	return prompt | llm | parser
 
 
@@ -172,8 +281,51 @@ def sha256_str(s: str) -> str:
 
 
 def ensure_db(db_path: Path) -> None:
+	"""Ensure database file exists and schema is initialized."""
+	# Try multiple possible schema paths
+	schema_paths = [
+		db_path.parent / "schema.sql",  # Local: backend/db/civicpulse.db -> backend/db/schema.sql
+		Path("/app/backend/db/schema.sql"),  # Docker: mounted path
+		get_backend_path() / "db" / "schema.sql",  # Fallback
+	]
+	
+	schema_path = None
+	for path in schema_paths:
+		if path.exists():
+			schema_path = path
+			break
+	
+	if not schema_path:
+		raise FileNotFoundError(f"Schema file not found. Tried: {schema_paths}")
+	
+	# Ensure parent directory exists
+	db_path.parent.mkdir(parents=True, exist_ok=True)
+	
 	if not db_path.exists():
-		raise FileNotFoundError(f"Database not found at {db_path}. Initialize it from backend/db/schema.sql.")
+		# Create database file and initialize schema
+		conn = sqlite3.connect(str(db_path))
+		try:
+			with open(schema_path, "r", encoding="utf-8") as f:
+				schema_sql = f.read()
+			conn.executescript(schema_sql)
+			conn.commit()
+		finally:
+			conn.close()
+	else:
+		# Verify schema exists
+		conn = sqlite3.connect(str(db_path))
+		try:
+			cur = conn.cursor()
+			cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
+			if not cur.fetchone():
+				# Schema not initialized, initialize it now
+				with open(schema_path, "r", encoding="utf-8") as f:
+					schema_sql = f.read()
+				conn.executescript(schema_sql)
+				conn.commit()
+			cur.close()
+		finally:
+			conn.close()
 
 
 def insert_document_records(
@@ -187,40 +339,47 @@ def insert_document_records(
 	full_text: Optional[str] = None,
 ) -> None:
 	cur = conn.cursor()
-	cur.execute(
-		"""
-		INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size)
-		VALUES (?, ?, ?, ?, ?)
-		""",
-		(doc_id, source_id, file_url, content_hash, bytes_size),
-	)
-	cur.execute(
-		"""
-		INSERT INTO document_metadata (
-		  document_id, title, entity, jurisdiction, counties, meeting_date,
-		  doc_types, topics, impact, stage, keyword_hits, extracted_text,
-		  pdf_preview, attachments, full_text
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		""",
-		(
-			doc_id,
-			meta.title,
-			meta.entity,
-			meta.jurisdiction,
-			json.dumps(meta.counties, ensure_ascii=False),
-			meta.meeting_date,
-			json.dumps(meta.doc_types, ensure_ascii=False),
-			json.dumps(meta.topics, ensure_ascii=False),
-			meta.impact,
-			meta.stage,
-			json.dumps(meta.keyword_hits, ensure_ascii=False),
-			json.dumps(meta.extracted_text, ensure_ascii=False),
-			json.dumps(meta.pdf_preview, ensure_ascii=False),
-			json.dumps(meta.attachments, ensure_ascii=False),
-			full_text,  # Store full text content
-		),
-	)
-	conn.commit()
+	try:
+		cur.execute(
+			"""
+			INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size)
+			VALUES (?, ?, ?, ?, ?)
+			""",
+			(doc_id, source_id, file_url, content_hash, bytes_size),
+		)
+		cur.execute(
+			"""
+			INSERT INTO document_metadata (
+			  document_id, title, entity, jurisdiction, counties, meeting_date,
+			  doc_types, topics, impact, stage, keyword_hits, extracted_text,
+			  pdf_preview, summary, attachments, full_text
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			""",
+			(
+				doc_id,
+				meta.title,
+				meta.entity,
+				meta.jurisdiction,
+				json.dumps(meta.counties, ensure_ascii=False),
+				meta.meeting_date,  # SQLite stores dates as TEXT
+				json.dumps(meta.doc_types, ensure_ascii=False),
+				json.dumps(meta.topics, ensure_ascii=False),
+				meta.impact,
+				meta.stage,
+				json.dumps(meta.keyword_hits, ensure_ascii=False),
+				json.dumps(meta.extracted_text, ensure_ascii=False),
+				json.dumps(meta.pdf_preview, ensure_ascii=False),
+				meta.summary,  # Document summary
+				json.dumps(meta.attachments, ensure_ascii=False),
+				full_text,  # Store full text content
+			),
+		)
+		conn.commit()
+	except sqlite3.IntegrityError:
+		conn.rollback()
+		raise
+	finally:
+		cur.close()
 
 
 def resolve_bytes_for_pdf(processing_json_path: Path, processing_obj: Dict[str, Any], input_dir: Path) -> int:
@@ -253,23 +412,12 @@ def main() -> None:
 
 	input_dir = Path(args.input_dir)
 	db_path = Path(args.db_path)
+	
+	# Ensure database exists and schema is initialized
 	ensure_db(db_path)
-
-	# Ensure full_text column exists (for existing databases)
+	
+	# Connect to SQLite
 	conn = sqlite3.connect(str(db_path))
-	try:
-		cur = conn.cursor()
-		# Check if full_text column exists
-		cur.execute("PRAGMA table_info(document_metadata)")
-		columns = [row[1] for row in cur.fetchall()]
-		if "full_text" not in columns:
-			print("Adding full_text column to document_metadata table...", flush=True)
-			cur.execute("ALTER TABLE document_metadata ADD COLUMN full_text TEXT")
-			conn.commit()
-	except Exception as e:
-		print(f"Warning: Could not ensure full_text column exists: {e}", file=sys.stderr)
-	finally:
-		conn.close()
 
 	chain = build_llm_chain(args.model)
 
@@ -291,7 +439,6 @@ def main() -> None:
 		print(f"No processing JSON or .txt files found in {input_dir}", flush=True)
 		return
 
-	conn = sqlite3.connect(str(db_path))
 	try:
 		# Process JSON files
 		for idx, (p, obj) in enumerate(json_items, 1):
@@ -301,7 +448,24 @@ def main() -> None:
 				continue
 
 			print(f"[JSON {idx}/{len(json_items)}] Parsing: {p.name}", flush=True)
-			meta: DocumentMetadataSchema = chain.invoke({"context": context})
+			# Parse filename for additional context
+			filename_info = parse_filename(p.name)
+			meta_result = chain.invoke({
+				"context": context,
+				"filename": p.name
+			})
+			# Ensure we have a DocumentMetadataSchema object
+			if isinstance(meta_result, dict):
+				meta = DocumentMetadataSchema(**meta_result)
+			else:
+				meta = meta_result
+			
+			# Ensure keyword_hits only contains standard topics (not "other") and only topics that are in the document's topics
+			# Filter to only include topics that are both in STANDARD_TOPICS and in meta.topics
+			meta.keyword_hits = {
+				k: v for k, v in meta.keyword_hits.items() 
+				if k in STANDARD_TOPICS and k in meta.topics
+			}
 
 			# Build core document record data
 			content_hash = sha256_str(context)
@@ -336,7 +500,24 @@ def main() -> None:
 				continue
 
 			print(f"[TXT {idx}/{len(txt_items)}] Parsing: {p.name}", flush=True)
-			meta: DocumentMetadataSchema = chain.invoke({"context": context})
+			# Parse filename for additional context
+			filename_info = parse_filename(p.name)
+			meta_result = chain.invoke({
+				"context": context,
+				"filename": p.name
+			})
+			# Ensure we have a DocumentMetadataSchema object
+			if isinstance(meta_result, dict):
+				meta = DocumentMetadataSchema(**meta_result)
+			else:
+				meta = meta_result
+			
+			# Ensure keyword_hits only contains standard topics (not "other") and only topics that are in the document's topics
+			# Filter to only include topics that are both in STANDARD_TOPICS and in meta.topics
+			meta.keyword_hits = {
+				k: v for k, v in meta.keyword_hits.items() 
+				if k in STANDARD_TOPICS and k in meta.topics
+			}
 
 			# Build core document record data
 			content_hash = sha256_str(full_text)
@@ -376,6 +557,7 @@ def main() -> None:
 						print(f"  -> updated existing document {doc_id[:12]}... with full text ({len(full_text)} chars)", flush=True)
 					else:
 						print(f"  -> skipped (duplicate): {e}", flush=True)
+					cur.close()
 				except Exception as update_err:
 					print(f"  -> skipped (duplicate or update failed): {update_err}", flush=True)
 	except Exception as e:

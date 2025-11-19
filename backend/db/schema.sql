@@ -3,7 +3,7 @@
 -- and duplicate prevention based on content hashes.
 --
 -- Usage:
---   sqlite3 civicpulse.db < schema.sql
+--   sqlite3 backend/data/civicpulse.db < backend/db/schema.sql
 
 -- Documents table stores scraped files with metadata for tracking and deduplication
 CREATE TABLE IF NOT EXISTS documents (
@@ -52,18 +52,21 @@ CREATE TABLE IF NOT EXISTS document_metadata (
     
     -- Classification (JSON arrays)
     doc_types TEXT NOT NULL DEFAULT '[]',     -- e.g., '["Agenda", "Minutes"]'
-    topics TEXT NOT NULL DEFAULT '[]',        -- e.g., '["zoning", "solar"]'
+    topics TEXT NOT NULL DEFAULT '[]',        -- e.g., '["housing_and_zoning", "taxes_and_budget"]'
     
     -- Impact and stage
     impact TEXT NOT NULL DEFAULT 'Low',       -- "Low" | "Medium" | "High"
     stage TEXT,                               -- "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft"
     
-    -- Search relevance (JSON object)
-    keyword_hits TEXT DEFAULT '{}',           -- e.g., '{"solar zoning": 3, "setback": 2}'
+    -- Search relevance (JSON object: {topic: {keyword: count}})
+    keyword_hits TEXT DEFAULT '{}',           -- e.g., '{"education": {"curriculum": 5, "K-12": 3}}'
     
     -- Preview data (JSON arrays)
     extracted_text TEXT DEFAULT '[]',         -- Sample paragraphs from document
     pdf_preview TEXT DEFAULT '[]',            -- Page preview snippets
+    
+    -- Document summary (1-3 sentences summarizing the entire document)
+    summary TEXT,                                    -- Summary of the document
     
     -- Full document text (complete extracted text from PDF)
     full_text TEXT,                           -- Full text content of the document

@@ -18,9 +18,9 @@ fi
 
 echo "--- RUNNING CIVICPULSE DOCUMENT METADATA PARSER ---"
 
-# Default arguments target processing outputs and shared SQLite DB
+# Default arguments target processing outputs and SQLite database
 DEFAULT_INPUT_DIR=${CIVICPULSE_PROCESSING_OUTPUT_DIR:-/app/backend/processing/output}
-DEFAULT_DB_PATH=${CIVICPULSE_DB_PATH:-/app/backend/data/civicpulse.db}
+DEFAULT_DB_PATH=${CIVICPULSE_DB_PATH:-/app/backend/db/civicpulse.db}
 
 exec uv run python parse_documents.py \
   --input_dir "$DEFAULT_INPUT_DIR" \

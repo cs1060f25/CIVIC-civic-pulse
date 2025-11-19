@@ -43,13 +43,14 @@ WORKDIR /app
 # --------------------------------------------------------------------------
 # Set up entrypoint script
 # --------------------------------------------------------------------------
-RUN chmod +x ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh && \
+    sed -i 's/\r$//' ./docker-entrypoint.sh || true
 
 # --------------------------------------------------------------------------
 # Default entrypoint
 # --------------------------------------------------------------------------
 ENV CIVICPULSE_PROCESSING_OUTPUT_DIR=/app/backend/processing/output
-ENV CIVICPULSE_DB_PATH=/app/backend/data/civicpulse.db
+ENV CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "./docker-entrypoint.sh"]
 

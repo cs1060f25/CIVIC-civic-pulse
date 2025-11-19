@@ -58,15 +58,17 @@ services:
       context: ./src/lm_parser
       dockerfile: Dockerfile
     volumes:
-      - ../../backend/processing:/app/backend/processing
-      - ../../backend/data:/app/backend/data
-      - ../../backend/db:/app/backend/db:ro
+      - ../backend/processing:/app/backend/processing
+      - ../backend/data:/app/backend/data
+      - ../backend/db:/app/backend/db
       - ../../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
     environment:
       - PYTHONUNBUFFERED=1
       - GOOGLE_API_KEY_PATH=/run/secrets/google_api_key.txt
+      - CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db
     depends_on:
-      - processing
+      processing:
+        condition: service_started
     networks:
       - civicpulse-network
     restart: unless-stopped

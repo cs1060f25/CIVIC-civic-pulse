@@ -384,14 +384,15 @@ export default function BriefPage() {
   // Safety check - if state is undefined, show loading state
   if (!state) {
     return (
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full py-8">
         <div className="text-center">Loading...</div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="w-full py-8">
+      <div className="px-6 sm:px-8 lg:px-12">
       <h1 className="text-2xl font-semibold tracking-tight">Brief Builder</h1>
 
       <section className="mt-6 grid lg:grid-cols-3 gap-6">
@@ -749,6 +750,7 @@ export default function BriefPage() {
           </Card>
         </div>
       )}
+    </div>
     </main>
   );
 }

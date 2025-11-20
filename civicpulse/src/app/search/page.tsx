@@ -67,10 +67,11 @@ export default function SearchPage() {
   const results = documents;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
-      <div className="mt-6 grid lg:grid-cols-4 gap-6">
-        <aside className="lg:col-span-1 space-y-4">
+    <main className="w-full py-8">
+      <div className="px-6 sm:px-8 lg:px-12">
+        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+        <div className="mt-6 grid lg:grid-cols-4 gap-6">
+          <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-8 lg:h-fit">
           {/* Button shown in sidebar on desktop only */}
           <div className="hidden lg:block">
             <Button
@@ -110,6 +111,7 @@ export default function SearchPage() {
           </Card>
           <Card>
             <div className="text-sm font-medium">Counties</div>
+            <div className="text-xs text-gray-500 mt-1">Filter currently disabled</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {["Sedgwick County", "Johnson", "Douglas", "Wyandotte"].map((c) => {
                 const active = counties.includes(c);
@@ -269,6 +271,7 @@ export default function SearchPage() {
             </div>
           )}
         </section>
+        </div>
       </div>
     </main>
   );

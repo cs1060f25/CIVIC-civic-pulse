@@ -141,7 +141,7 @@ export default function ItemDetailPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full py-8">
         <div className="text-sm muted">Loading document...</div>
       </main>
     );
@@ -149,7 +149,7 @@ export default function ItemDetailPage() {
 
   if (error || !item) {
     return (
-      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full py-8">
         <div className="text-sm">
           {error || "Document not found."}{" "}
           <Link className="text-[--color-brand-100] hover:underline" href="/search">
@@ -161,7 +161,8 @@ export default function ItemDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="w-full py-8">
+      <div className="px-6 sm:px-8 lg:px-12">
       {/* Header with enhanced visual hierarchy */}
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
@@ -456,6 +457,7 @@ export default function ItemDetailPage() {
           }
         />
       </div>
+    </div>
     </main>
   );
 }

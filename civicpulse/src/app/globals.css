@@ -219,3 +219,94 @@ body {
   --color-accent-cyan: var(--color-accent-cyan);
   --color-accent-emerald: var(--color-accent-emerald);
 }
+
+/* Date Picker Custom Styling */
+.react-datepicker {
+  background-color: var(--surface) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--radius-lg) !important;
+  font-family: var(--font-geist-sans) !important;
+  box-shadow: var(--shadow-card) !important;
+  color: var(--foreground) !important;
+}
+
+.react-datepicker__header {
+  background-color: var(--surface-2) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+  padding: 8px 0 !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: var(--foreground) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.react-datepicker__day-name {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.react-datepicker__day {
+  color: var(--foreground) !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--brand-600) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: var(--brand-500) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--brand-600) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: var(--muted) !important;
+  opacity: 0.5 !important;
+}
+
+.react-datepicker__day--disabled {
+  color: var(--muted) !important;
+  opacity: 0.3 !important;
+}
+
+.react-datepicker__navigation {
+  color: var(--foreground) !important;
+  top: 8px !important;
+}
+
+.react-datepicker__navigation:hover::before {
+  border-color: var(--brand-400) !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+/* Position calendar above input */
+.react-datepicker-popper {
+  z-index: 50 !important;
+}
+
+.react-datepicker-popper[data-placement^="top"] {
+  margin-bottom: 8px !important;
+}
+
+/* Input field styling when focused */
+.react-datepicker-wrapper input:focus {
+  outline: 2px solid var(--ring-color) !important;
+  outline-offset: 2px !important;
+}

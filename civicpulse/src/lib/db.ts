@@ -3,12 +3,16 @@ import path from "path";
 import fs from "fs";
 
 // Database path - adjust based on environment
-// Try multiple possible locations
+// Try multiple possible locations, prioritizing backend/db/ to align with ingestion scripts
 const possiblePaths = [
-  path.join(process.cwd(), "..", "backend", "data", "civicpulse.db"),  // Local dev from civicpulse/
-  path.join(process.cwd(), "backend", "data", "civicpulse.db"),  // Docker/standalone
-  path.join(process.cwd(), "..", "..", "..", "backend", "data", "civicpulse.db"),  // Local dev from src/app/
-  path.join(process.cwd(), "..", "..", "..", "..", "backend", "data", "civicpulse.db"),  // Alternative
+  path.join(process.cwd(), "..", "backend", "db", "civicpulse.db"),  // Local dev from civicpulse/ (primary - aligns with ingestion)
+  path.join(process.cwd(), "backend", "db", "civicpulse.db"),  // Docker/standalone (primary - aligns with ingestion)
+  path.join(process.cwd(), "..", "backend", "data", "civicpulse.db"),  // Local dev from civicpulse/ (fallback)
+  path.join(process.cwd(), "backend", "data", "civicpulse.db"),  // Docker/standalone (fallback)
+  path.join(process.cwd(), "..", "..", "..", "backend", "db", "civicpulse.db"),  // Local dev from src/app/ (primary)
+  path.join(process.cwd(), "..", "..", "..", "backend", "data", "civicpulse.db"),  // Local dev from src/app/ (fallback)
+  path.join(process.cwd(), "..", "..", "..", "..", "backend", "db", "civicpulse.db"),  // Alternative (primary)
+  path.join(process.cwd(), "..", "..", "..", "..", "backend", "data", "civicpulse.db"),  // Alternative (fallback)
 ];
 
 // Find the first path that exists, or use the first one as default

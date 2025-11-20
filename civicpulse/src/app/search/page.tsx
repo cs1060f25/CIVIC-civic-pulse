@@ -5,6 +5,8 @@ import type { DocumentType, FeedItem } from "@/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAppState } from "@/lib/state";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinance", "Other"];
 
@@ -20,14 +22,15 @@ export default function SearchPage() {
   }
   const [query, setQuery] = useState("");
   const [selectedDocTypes, setSelectedDocTypes] = useState<DocumentType[]>(["Agenda", "Minutes", "Staff Memo"]);
-  const [counties, setCounties] = useState<string[]>(["Johnson", "Sedgwick", "Douglas"]);
-  const [days, setDays] = useState(60);
+  const [counties, setCounties] = useState<string[]>(["Sedgwick County"]);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   function toggle<T>(arr: T[], value: T): T[] {
     return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
   }
 
-  // Fetch documents from API
+  // Fetch documents from API (with query, document type, and date range filters)
   useEffect(() => {
     async function fetchDocuments() {
       setLoading(true);
@@ -37,8 +40,9 @@ export default function SearchPage() {
         const params = new URLSearchParams();
         if (query) params.append("query", query);
         if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
-        if (counties.length > 0) params.append("counties", counties.join(","));
-        if (days) params.append("daysBack", days.toString());
+        if (startDate) params.append("meetingDateFrom", startDate.toISOString().split('T')[0]);
+        if (endDate) params.append("meetingDateTo", endDate.toISOString().split('T')[0]);
+        // Keep counties filter dormant for now
         params.append("limit", "100");
         
         const response = await fetch(`/api/documents?${params.toString()}`);
@@ -58,7 +62,7 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, counties, days]);
+  }, [query, selectedDocTypes, startDate, endDate]); // Include date range in dependencies
 
   const results = documents;
 
@@ -107,7 +111,7 @@ export default function SearchPage() {
           <Card>
             <div className="text-sm font-medium">Counties</div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {["Johnson", "Sedgwick", "Douglas", "Wyandotte"].map((c) => {
+              {["Sedgwick County", "Johnson", "Douglas", "Wyandotte"].map((c) => {
                 const active = counties.includes(c);
                 return (
                   <button
@@ -125,8 +129,32 @@ export default function SearchPage() {
           </Card>
           <Card>
             <label className="block text-sm font-medium">Date range</label>
-            <input type="range" min={7} max={120} value={days} onChange={(e) => setDays(parseInt(e.target.value))} className="mt-2 w-full" />
-            <div className="text-xs muted">Last {days} days</div>
+            <div className="mt-2 space-y-2">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Start date</label>
+                <DatePicker
+                  selected={startDate}
+                  onChange={(date: Date | null) => setStartDate(date)}
+                  placeholderText="Select start date"
+                  className="input w-full"
+                  dateFormat="yyyy-MM-dd"
+                  isClearable
+                  popperPlacement="top"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">End date</label>
+                <DatePicker
+                  selected={endDate}
+                  onChange={(date: Date | null) => setEndDate(date)}
+                  placeholderText="Select end date"
+                  className="input w-full"
+                  dateFormat="yyyy-MM-dd"
+                  isClearable
+                  popperPlacement="top"
+                />
+              </div>
+            </div>
           </Card>
         </aside>
         <section className="lg:col-span-3">

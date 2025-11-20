@@ -1,6 +1,18 @@
 #testing
 **/*.pdf
 !data/raw notes/Wichita/*.pdf
+!data/raw notes/Andover/*.pdf
+!data/raw notes/Derby/*.pdf
+!data/raw notes/Great Bend/*.pdf
+!data/raw notes/Hays/*.pdf
+!data/raw notes/Hutchinson/*.pdf
+!data/raw notes/Kansas City/*.pdf
+!data/raw notes/Lawrence/*.pdf
+!data/raw notes/Leawood/*.pdf
+!data/raw notes/Manhattan/*.pdf
+!data/raw notes/Olathe/*.pdf
+!data/raw notes/Overland Park/*.pdf
+!data/raw notes/Shawnee/*.pdf
 **/*.txt
 **/*.json
 

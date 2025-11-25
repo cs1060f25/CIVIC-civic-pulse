@@ -32,6 +32,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState);
 
   useEffect(() => {
+    // Only access localStorage on client side
+    if (typeof window === "undefined") return;
+    
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -54,6 +57,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Only access localStorage on client side
+    if (typeof window === "undefined") return;
+    
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {

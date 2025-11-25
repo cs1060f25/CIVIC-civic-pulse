@@ -35,7 +35,9 @@ export function Navbar() {
           })}
         </nav>
         <div className="hidden sm:block">
-          <Button>Sign in (mock)</Button>
+          <Link href="/login">
+            <Button>Sign in</Button>
+          </Link>
         </div>
       </div>
     </header>

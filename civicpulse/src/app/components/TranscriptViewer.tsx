@@ -235,3 +235,4 @@ export function TranscriptViewer({ onSummaryGenerated, onTranscriptLoaded, userT
     </div>
   );
 }
+

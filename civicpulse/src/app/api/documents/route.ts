@@ -31,6 +31,16 @@ export async function GET(request: NextRequest) {
     
     const db = getDb();
     
+    // Check if tables exist
+    const tablesCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('documents', 'document_metadata')").all() as { name: string }[];
+    if (tablesCheck.length < 2) {
+      console.error("Database tables missing. Found tables:", tablesCheck.map(t => t.name));
+      return NextResponse.json(
+        { error: "Database tables not found. Please initialize the database." },
+        { status: 500 }
+      );
+    }
+    
     // Build query
     let sql = `
       SELECT 

@@ -19,19 +19,14 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[--color-background] flex items-center justify-center px-4">
       <div className="w-full max-w-xl space-y-6 text-center">
         <div>
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[--color-brand-600] rounded-2xl mb-4 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
           <h1 className="text-3xl font-bold mb-2">Sign in to CivicPulse</h1>
           <p className="text-[--color-muted]">
             Authenticate with Google to access search, build briefs, and sync your workspace across sessions.
           </p>
         </div>
 
-        <div className="card p-8 space-y-6">
-          <GoogleLoginButton className="text-base py-6" />
+        <div className="space-y-4 max-w-sm mx-auto mt-4">
+          <GoogleLoginButton />
           <p className="text-sm text-[--color-muted]">
             We only use your Google profile to verify identity and personalize your CivicPulse workspace.
           </p>

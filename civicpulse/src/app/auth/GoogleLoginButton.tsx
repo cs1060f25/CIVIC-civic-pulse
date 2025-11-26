@@ -1,15 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Button } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 
 interface GoogleLoginButtonProps {
   className?: string;
-  label?: string;
 }
 
-export function GoogleLoginButton({ className, label }: GoogleLoginButtonProps) {
+export function GoogleLoginButton({ className }: GoogleLoginButtonProps) {
   const { login, isAuthenticated, user } = useAuth();
 
   if (isAuthenticated && user) {
@@ -42,12 +40,12 @@ export function GoogleLoginButton({ className, label }: GoogleLoginButtonProps) 
   }
 
   return (
-    <Button
+    <button
       type="button"
-      className={`w-full justify-center gap-3 ${className ?? ""}`}
       onClick={() => login()}
+      className={`inline-flex items-center justify-center gap-3 px-4 py-2 rounded-md bg-white text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 ${className ?? ""}`}
     >
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
           fill="#4285F4"
@@ -65,8 +63,8 @@ export function GoogleLoginButton({ className, label }: GoogleLoginButtonProps) 
           fill="#EA4335"
         />
       </svg>
-      {label ?? "Continue with Google"}
-    </Button>
+      <span className="text-sm font-medium">Sign in with Google</span>
+    </button>
   );
 }
 

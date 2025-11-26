@@ -5,6 +5,7 @@ import type { DocumentType, FeedItem } from "@/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAppState } from "@/lib/state";
+import { formatHitLabel } from "@/lib/format";
 import { useAuth } from "@/auth/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -240,7 +241,12 @@ export default function SearchPage() {
                         <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
                       )}
                     </div>
-                    <div className="text-xs muted mt-1">Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}</div>
+                      <div className="text-xs muted mt-1">
+                        Hits:{" "}
+                        {Object.entries(item.hits || {})
+                          .map(([k, v]) => formatHitLabel(k, v))
+                          .join(", ")}
+                      </div>
                   </div>
                   <div className="col-span-3 px-4 py-4 overflow-hidden break-words">
                     <div className="font-medium text-xs">{item.entity}</div>
@@ -289,7 +295,10 @@ export default function SearchPage() {
                         {item.docTypes.join(", ")} • {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                       </div>
                       <div className="text-xs muted mt-1">
-                        Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}
+                        Hits:{" "}
+                        {Object.entries(item.hits || {})
+                          .map(([k, v]) => formatHitLabel(k, v))
+                          .join(", ")}
                       </div>
                     </div>
                   </div>

@@ -2,10 +2,17 @@ id: "leawood_civicweb"
 
 # Base host and entry (root folder) URL for Leawood's CivicWeb library
 base_url: "https://leawood.civicweb.net"
-root_folder_url: "/filepro/documents/7150/"
+root_folder_url: "/filepro/documents/"
 
 # City name for output directory structure
 city_name: "Leawood"
+
+# Navigation path: folder sequence to reach target documents
+# Note: Leawood has nested folders within 2025, so the scraper will handle those automatically
+navigation_path:
+  - "Agenda and Minutes"
+  - "Governing Body - Regular Session"
+  - "2025"
 
 # Target year to scrape
 target_year: 2025

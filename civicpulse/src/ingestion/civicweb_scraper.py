@@ -58,30 +58,42 @@ def ensure_allowed_domain(url: str, allowed_domains: list) -> bool:
     return any(host.endswith(d) for d in allowed_domains)
 
 
+def find_folder_href(html: str, folder_name: str) -> Optional[str]:
+    """
+    Find the href to a folder by matching its name (case-insensitive, partial match).
+    Returns the first matching folder link.
+    """
+    soup = BeautifulSoup(html, "lxml")
+    folder_name_lower = folder_name.lower()
+    
+    # Strategy 1: exact anchor text match
+    for a in soup.select("a[href^='/filepro/documents/']"):
+        label = a.get_text(strip=True)
+        if label.lower() == folder_name_lower:
+            return a.get("href")
+    
+    # Strategy 2: row text contains the folder name; pick the first /documents/ link in that row
+    for tr in soup.select("table tbody tr"):
+        row_text = tr.get_text(separator=" ", strip=True)
+        if folder_name_lower in row_text.lower():
+            a = tr.select_one("a[href^='/filepro/documents/']")
+            if a:
+                return a.get("href")
+    
+    # Strategy 3: partial match on anchor text
+    for a in soup.select("a[href^='/filepro/documents/']"):
+        label = a.get_text(strip=True)
+        if folder_name_lower in label.lower() or label.lower() in folder_name_lower:
+            return a.get("href")
+    
+    return None
+
+
 def find_year_href(html: str, target_year: int) -> Optional[str]:
     """
     Parse the root folder page and return the href to the specific year folder (e.g., "2025").
     """
-    soup = BeautifulSoup(html, "lxml")
-    year_text = str(target_year)
-    # Strategy 1: direct anchor text match
-    for a in soup.select("a[href^='/filepro/documents/']"):
-        label = a.get_text(strip=True)
-        if label == year_text:
-            return a.get("href")
-    # Strategy 2: row text contains the year; pick the first /documents/ link in that row
-    for tr in soup.select("table tbody tr"):
-        row_text = tr.get_text(separator=" ", strip=True)
-        if year_text in row_text:
-            a = tr.select_one("a[href^='/filepro/documents/']")
-            if a:
-                return a.get("href")
-    # Strategy 3: any link that looks like a child folder and ends with /<year>/ (some sites)
-    for a in soup.select("a[href^='/filepro/documents/']"):
-        href = a.get("href", "")
-        if href.rstrip("/").endswith("/" + year_text):
-            return href
-    return None
+    return find_folder_href(html, str(target_year))
 
 
 def iter_meeting_folder_links(year_page_html: str):
@@ -111,13 +123,16 @@ def iter_document_links(year_page_html: str):
     Supports two patterns:
       1) Direct PDF links: /filepro/document/<id>/<name>.pdf
       2) Item links:       /document/<id>  (construct PDF URL using the title)
+    
+    Only yields PDF links (filters out HTML and other file types).
     """
     soup = BeautifulSoup(year_page_html, "lxml")
     # Pattern 1: already a direct PDF link
     for a in soup.select("a[href^='/filepro/document/']"):
         href = a.get("href", "")
         title = a.get_text(strip=True) or Path(href).name
-        if href.lower().endswith(".pdf"):
+        # Only yield PDF links
+        if href.lower().endswith(".pdf") or ".pdf" in href.lower():
             yield title, href
     # Pattern 2: item page links, construct the full PDF URL
     for a in soup.select("a[href^='/document/']"):
@@ -127,8 +142,10 @@ def iter_document_links(year_page_html: str):
         parts = href.strip("/").split("/")
         if len(parts) == 2 and parts[0] == "document" and title:
             doc_id = parts[1]
-            constructed = f"/document/{doc_id}/{title}.pdf"
-            yield title, constructed
+            # Only construct PDF URLs (skip HTML)
+            if not title.lower().endswith(".html") and not title.lower().endswith(".htm"):
+                constructed = f"/document/{doc_id}/{title}.pdf"
+                yield title, constructed
 
 
 def download_and_save(
@@ -149,6 +166,9 @@ def download_and_save(
     r = session.get(url, timeout=60)
     r.raise_for_status()
     content_type = r.headers.get("Content-Type", "")
+    # Filter out HTML files - only accept PDFs
+    if "html" in content_type.lower() or r.content.strip().startswith(b"<"):
+        return {"status": "error", "reason": f"Not a PDF (HTML detected): {content_type}", "url": url}
     if "pdf" not in content_type.lower() and not r.content.startswith(b"%PDF"):
         return {"status": "error", "reason": f"Not a PDF: {content_type}", "url": url}
 
@@ -221,12 +241,31 @@ def main():
 
     # 1) Load root folder
     root_resp = fetch(session, base_url, root_folder_url)
-    year_href = find_year_href(root_resp.text, target_year)
-    if year_href:
-        year_resp = fetch(session, base_url, year_href)
+    
+    # 2) Follow navigation_path if specified, otherwise use legacy year-first logic
+    navigation_path = config.get("navigation_path", [])
+    current_resp = root_resp
+    current_html = root_resp.text
+    
+    if navigation_path:
+        # Follow the navigation path sequentially
+        for folder_name in navigation_path:
+            folder_href = find_folder_href(current_html, folder_name)
+            if folder_href:
+                current_resp = fetch(session, base_url, folder_href)
+                current_html = current_resp.text
+            else:
+                print(f"Warning: Could not find folder '{folder_name}' in navigation path", file=sys.stderr)
+                break
+        year_resp = current_resp
     else:
-        # Some CivicWeb folders show the current year directly on the root page.
-        year_resp = root_resp
+        # Legacy: year-first structure
+        year_href = find_year_href(root_resp.text, target_year)
+        if year_href:
+            year_resp = fetch(session, base_url, year_href)
+        else:
+            # Some CivicWeb folders show the current year directly on the root page.
+            year_resp = root_resp
 
     # 3) Check if this city uses nested folders (Year -> Meeting Folders -> PDFs)
     # Detect by checking if year page has folder links vs direct PDF links

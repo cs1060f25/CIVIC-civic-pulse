@@ -2,10 +2,16 @@ id: "shawnee_civicweb"
 
 # Base host and entry (root folder) URL for Shawnee's CivicWeb library
 base_url: "https://cityofshawnee.civicweb.net"
-root_folder_url: "/filepro/documents/4570/"
+root_folder_url: "/filepro/documents/"
 
 # City name for output directory structure
 city_name: "Shawnee"
+
+# Navigation path: folder sequence to reach target documents
+navigation_path:
+  - "Minutes"
+  - "City Council"
+  - "2025"
 
 # Target year to scrape
 target_year: 2025

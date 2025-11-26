@@ -332,7 +332,77 @@ def main():
                 )
                 time.sleep(2)  # Give it extra time to fully render
                 
-                # Step 1: Try to increase page size or show all records (don't use year filter dropdown)
+                # Step 1: Set filters (year and committee) before scraping
+                try:
+                    # Set year dropdown to target year
+                    target_year = config.get('target_year')
+                    if target_year:
+                        year_combo_id = "ctl00_ContentPlaceHolder1_lstYears"
+                        year_combo = WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.ID, year_combo_id))
+                        )
+                        # Click to open dropdown
+                        driver.execute_script("arguments[0].click();", year_combo)
+                        time.sleep(1)
+                        # Find and click the year option
+                        year_option = driver.find_element(By.XPATH, f"//li[contains(@class, 'rcbItem') and text()='{target_year}']")
+                        driver.execute_script("arguments[0].click();", year_option)
+                        print(f"Set year filter to {target_year}", file=sys.stderr)
+                        time.sleep(3)  # Wait for table to update
+                    
+                    # Set committee dropdown based on meeting_filter
+                    meeting_filter = config.get('meeting_filter', [])
+                    if isinstance(meeting_filter, str):
+                        meeting_filter = [meeting_filter]
+                    # If meeting_filter is specified, try to select it from the dropdown
+                    if meeting_filter:
+                        # Use the first filter term (e.g., "Council" or "City Council")
+                        filter_term = meeting_filter[0]
+                        # Click the arrow anchor to open dropdown
+                        arrow_id = "ctl00_ContentPlaceHolder1_lstBodies_Arrow"
+                        arrow_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.ID, arrow_id))
+                        )
+                        driver.execute_script("arguments[0].click();", arrow_button)
+                        
+                        # Wait for dropdown panel to appear
+                        dropdown_panel = WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_lstBodies_DropDown"))
+                        )
+                        time.sleep(1)  # Brief wait for options to render
+                        
+                        # Find all option elements (li.rcbItem or elements with role="option")
+                        all_options = dropdown_panel.find_elements(By.CSS_SELECTOR, "li.rcbItem, [role='option']")
+                        
+                        # Find the option with exact text matching the filter term
+                        selected_option = None
+                        for option in all_options:
+                            option_text = option.text.strip()
+                            if option_text == filter_term:
+                                selected_option = option
+                                break
+                        
+                        if selected_option:
+                            driver.execute_script("arguments[0].click();", selected_option)
+                            time.sleep(2)  # Wait for selection to register
+                            
+                            # Verify the input field now has the correct value
+                            input_id = "ctl00_ContentPlaceHolder1_lstBodies_Input"
+                            input_field = driver.find_element(By.ID, input_id)
+                            input_value = input_field.get_attribute("value")
+                            
+                            if input_value == filter_term:
+                                print(f"Set committee filter to {filter_term} (verified)", file=sys.stderr)
+                                time.sleep(3)  # Wait for table to update via AJAX
+                            else:
+                                print(f"Warning: Committee filter may not have worked. Input value is '{input_value}', expected '{filter_term}'", file=sys.stderr)
+                        else:
+                            print(f"Warning: Could not find '{filter_term}' option in committee dropdown", file=sys.stderr)
+                except Exception as e:
+                    print(f"Warning: Could not set filters: {e}", file=sys.stderr)
+                    # Continue anyway - might work without filters
+                
+                # Step 2: Try to increase page size or show all records (don't use year filter dropdown)
                 try:
                     # Look for page size dropdown in RadGrid footer
                     page_size_selects = driver.find_elements(By.CSS_SELECTOR,

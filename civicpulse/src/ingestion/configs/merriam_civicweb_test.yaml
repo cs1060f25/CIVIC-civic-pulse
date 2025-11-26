@@ -1,11 +1,11 @@
-id: "andover_civicweb"
+id: "merriam_civicweb"
 
-# Base host and entry (root folder) URL for Andover's CivicWeb library
-base_url: "https://andoverks.civicweb.net"
+# Base host and entry (root folder) URL for Merriam's CivicWeb library
+base_url: "https://merriam.civicweb.net"
 root_folder_url: "/filepro/documents/"
 
 # City name for output directory structure
-city_name: "Andover"
+city_name: "Merriam"
 
 # Navigation path: folder sequence to reach target documents
 navigation_path:
@@ -18,8 +18,7 @@ target_year: 2025
 
 # Allowed domains for basic validation
 allowed_domains:
-  - "andoverks.civicweb.net"
+  - "merriam.civicweb.net"
 
 # Output directory relative to backend/
 output_dir: "data/raw notes"
-

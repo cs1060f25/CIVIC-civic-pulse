@@ -15,6 +15,7 @@ allowed_domains:
 
 # Filter for specific meeting types (optional)
 # Only download minutes for meetings whose name contains these terms
+# Note: This is used both for dropdown filtering AND post-extraction filtering
 meeting_filter:
   - "Council"
 

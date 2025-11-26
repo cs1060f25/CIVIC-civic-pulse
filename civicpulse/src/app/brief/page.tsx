@@ -6,6 +6,7 @@ import { SavedBrief } from "@/lib/types";
 import type { FeedItem } from "@/lib/types";
 import { Button, Card } from "@/components/ui";
 import Link from "next/link";
+import { useAuth } from "@/auth/AuthContext";
 
 // Mock documents for testing (same as in search page)
 const MOCK_DOCUMENTS: FeedItem[] = [
@@ -57,6 +58,7 @@ const MOCK_DOCUMENTS: FeedItem[] = [
 
 export default function BriefPage() {
   const { state, removeFromBrief, saveBrief, loadBrief, deleteBrief, clearBrief } = useAppState();
+  const { isAuthenticated } = useAuth();
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +69,9 @@ export default function BriefPage() {
 
   // Fetch documents that are in the brief
   useEffect(() => {
-    // Safety check - if state is undefined, don't proceed
-    if (!state) {
+    // Safety check - if user not authenticated or state missing, don't proceed
+    if (!state || !isAuthenticated) {
+      setDocuments([]);
       setLoading(false);
       return;
     }
@@ -119,7 +122,7 @@ export default function BriefPage() {
     }
 
     fetchBriefDocuments();
-  }, [state]);
+  }, [state, isAuthenticated]);
 
   // Calculate metadata
   const itemCount = documents.length;
@@ -386,6 +389,25 @@ export default function BriefPage() {
     return (
       <main className="w-full py-8">
         <div className="text-center">Loading...</div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-semibold">Sign in to build briefs</h1>
+          <p className="text-[--color-muted]">
+            Authenticate with Google to save document selections, resume drafts, and export briefs.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[--color-brand-600] text-white font-semibold"
+          >
+            Go to login
+          </Link>
+        </div>
       </main>
     );
   }

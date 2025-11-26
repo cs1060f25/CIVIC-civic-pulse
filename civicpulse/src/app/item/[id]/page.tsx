@@ -8,6 +8,7 @@ import { TranscriptViewer } from "@/components/TranscriptViewer";
 import Link from "next/link";
 import { Button, Card, Badge } from "@/components/ui";
 import { useAppState } from "@/lib/state";
+import { formatTopicLabel } from "@/lib/format";
 import ReactMarkdown from "react-markdown";
 
 // Mock documents for testing (same as Search/Brief pages)
@@ -256,9 +257,12 @@ export default function ItemDetailPage() {
                     key={topic}
                     className="inline-block px-2 py-1 rounded-full text-xs bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
                   >
-                    {topic}
+                    {formatTopicLabel(topic)}
                   </span>
                 ))}
+                {item.topics.length === 0 && (
+                  <span className="text-xs text-[--color-muted]">No topics tagged yet</span>
+                )}
               </div>
             </div>
           </div>

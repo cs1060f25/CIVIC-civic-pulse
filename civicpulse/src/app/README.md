@@ -88,6 +88,9 @@ Create a `.env.local` file if needed:
 # Database path override (recommended for local dev)
 CIVICPULSE_DB_PATH=../backend/db/civicpulse.db
 
+# Google OAuth Client ID (required for login)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+
 # Next.js environment
 NODE_ENV=development
 
@@ -95,6 +98,17 @@ NODE_ENV=development
 # (automatically set inside the Docker builder stage)
 # CIVICPULSE_SKIP_DB=true
 ```
+
+### Authentication
+
+- Google OAuth is the only way to register and sign in.
+- `ClientProviders` wraps the app with `GoogleOAuthProvider`, `AuthProvider`, and `AppProvider`.
+- API routes:
+  - `POST /api/auth/google` upserts the user in SQLite.
+  - `GET/POST /api/user/state` loads and persists workspace state (saved briefs, selections, tags).
+- User navigation:
+  - Tabs (Search/Brief) appear only after authentication.
+  - The navbar sign-in button routes to the login page; authenticated users see a logout button that clears the session and returns to the marketing page.
 
 ## API Routes
 

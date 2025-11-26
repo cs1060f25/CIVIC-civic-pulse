@@ -5,26 +5,39 @@ import type { DocumentType, FeedItem } from "@/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAppState } from "@/lib/state";
+import { formatHitLabel } from "@/lib/format";
+import { useAuth } from "@/auth/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinance", "Other"];
 
 export default function SearchPage() {
-  const { state, addToBrief } = useAppState();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { state, addToBrief, setSearchUi } = useAppState();
+  const { isAuthenticated } = useAuth();
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const {
+    query,
+    selectedDocTypes,
+    counties,
+    meetingDateFrom,
+    meetingDateTo,
+    selectedIds,
+  } = state.searchUi;
+
+  const startDate = meetingDateFrom ? new Date(meetingDateFrom) : null;
+  const endDate = meetingDateTo ? new Date(meetingDateTo) : null;
 
   function toggleSelected(id: string) {
-    setSelectedIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+    setSearchUi((prev) => ({
+      ...prev,
+      selectedIds: prev.selectedIds.includes(id)
+        ? prev.selectedIds.filter((x) => x !== id)
+        : [...prev.selectedIds, id],
+    }));
   }
-  const [query, setQuery] = useState("");
-  const [selectedDocTypes, setSelectedDocTypes] = useState<DocumentType[]>(["Agenda", "Minutes", "Staff Memo"]);
-  const [counties, setCounties] = useState<string[]>(["Sedgwick County"]);
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
 
   function toggle<T>(arr: T[], value: T): T[] {
     return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -33,6 +46,12 @@ export default function SearchPage() {
   // Fetch documents from API (with query, document type, and date range filters)
   useEffect(() => {
     async function fetchDocuments() {
+      if (!isAuthenticated) {
+        setDocuments([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       
@@ -40,8 +59,8 @@ export default function SearchPage() {
         const params = new URLSearchParams();
         if (query) params.append("query", query);
         if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
-        if (startDate) params.append("meetingDateFrom", startDate.toISOString().split('T')[0]);
-        if (endDate) params.append("meetingDateTo", endDate.toISOString().split('T')[0]);
+        if (meetingDateFrom) params.append("meetingDateFrom", meetingDateFrom);
+        if (meetingDateTo) params.append("meetingDateTo", meetingDateTo);
         // Keep counties filter dormant for now
         params.append("limit", "100");
         
@@ -62,9 +81,28 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, startDate, endDate]); // Include date range in dependencies
+  }, [query, selectedDocTypes, meetingDateFrom, meetingDateTo, isAuthenticated]); // Include date range in dependencies
 
   const results = documents;
+
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-semibold">Sign in to search CivicPulse</h1>
+          <p className="text-[--color-muted]">
+            Use the Sign in button in the header to authenticate with Google. Search and brief tools unlock after authentication.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[--color-brand-600] text-white font-semibold"
+          >
+            Go to login
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full py-8">
@@ -80,7 +118,10 @@ export default function SearchPage() {
               disabled={selectedIds.length === 0}
               onClick={() => {
                 selectedIds.forEach((id) => addToBrief(id));
-                setSelectedIds([]);
+                setSearchUi((prev) => ({
+                  ...prev,
+                  selectedIds: [],
+                }));
               }}
             >
               Add {selectedIds.length || "0"} selected to brief
@@ -88,7 +129,17 @@ export default function SearchPage() {
           </div>
           <Card>
             <label className="block text-sm font-medium">Query</label>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder='e.g. ("utility-scale" AND zoning) AND (setback OR buffer)' className="input mt-2" />
+            <input
+              value={query}
+              onChange={(e) =>
+                setSearchUi((prev) => ({
+                  ...prev,
+                  query: e.target.value,
+                }))
+              }
+              placeholder='e.g. ("utility-scale" AND zoning) AND (setback OR buffer)'
+              className="input mt-2"
+            />
           </Card>
           <Card>
             <div className="text-sm font-medium">Document Type</div>
@@ -100,7 +151,12 @@ export default function SearchPage() {
                     type="button"
                     key={d}
                     aria-pressed={active}
-                    onClick={() => setSelectedDocTypes((x) => toggle(x, d))}
+                    onClick={() =>
+                      setSearchUi((prev) => ({
+                        ...prev,
+                        selectedDocTypes: toggle(prev.selectedDocTypes, d),
+                      }))
+                    }
                     className={`chip ${active ? "ring-2 ring-[--ring-color] bg-[color-mix(in_oklab,var(--brand-500)_20%,transparent)] border-[color-mix(in_oklab,var(--brand-500)_40%,transparent)] text-[--color-brand-100]" : ""}`}
                   >
                     {d}
@@ -120,7 +176,12 @@ export default function SearchPage() {
                     type="button"
                     key={c}
                     aria-pressed={active}
-                    onClick={() => setCounties((x) => toggle(x, c))}
+                    onClick={() =>
+                      setSearchUi((prev) => ({
+                        ...prev,
+                        counties: toggle(prev.counties, c),
+                      }))
+                    }
                     className={`chip ${active ? "ring-2 ring-[--ring-color] bg-[color-mix(in_oklab,var(--brand-500)_20%,transparent)] border-[color-mix(in_oklab,var(--brand-500)_40%,transparent)] text-[--color-brand-100]" : ""}`}
                   >
                     {c}
@@ -136,7 +197,12 @@ export default function SearchPage() {
                 <label className="block text-xs text-gray-400 mb-1">Start date</label>
                 <DatePicker
                   selected={startDate}
-                  onChange={(date: Date | null) => setStartDate(date)}
+                  onChange={(date: Date | null) =>
+                    setSearchUi((prev) => ({
+                      ...prev,
+                      meetingDateFrom: date ? date.toISOString().split("T")[0] : null,
+                    }))
+                  }
                   placeholderText="Select start date"
                   className="input w-full"
                   dateFormat="yyyy-MM-dd"
@@ -148,7 +214,12 @@ export default function SearchPage() {
                 <label className="block text-xs text-gray-400 mb-1">End date</label>
                 <DatePicker
                   selected={endDate}
-                  onChange={(date: Date | null) => setEndDate(date)}
+                  onChange={(date: Date | null) =>
+                    setSearchUi((prev) => ({
+                      ...prev,
+                      meetingDateTo: date ? date.toISOString().split("T")[0] : null,
+                    }))
+                  }
                   placeholderText="Select end date"
                   className="input w-full"
                   dateFormat="yyyy-MM-dd"
@@ -167,7 +238,10 @@ export default function SearchPage() {
             disabled={selectedIds.length === 0}
             onClick={() => {
               selectedIds.forEach((id) => addToBrief(id));
-              setSelectedIds([]);
+              setSearchUi((prev) => ({
+                ...prev,
+                selectedIds: [],
+              }));
             }}
           >
             Add {selectedIds.length || "0"} selected to brief
@@ -213,7 +287,12 @@ export default function SearchPage() {
                         <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
                       )}
                     </div>
-                    <div className="text-xs muted mt-1">Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}</div>
+                      <div className="text-xs muted mt-1">
+                        Hits:{" "}
+                        {Object.entries(item.hits || {})
+                          .map(([k, v]) => formatHitLabel(k, v))
+                          .join(", ")}
+                      </div>
                   </div>
                   <div className="col-span-3 px-4 py-4 overflow-hidden break-words">
                     <div className="font-medium text-xs">{item.entity}</div>
@@ -262,7 +341,10 @@ export default function SearchPage() {
                         {item.docTypes.join(", ")} • {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                       </div>
                       <div className="text-xs muted mt-1">
-                        Hits: {Object.entries(item.hits).map(([k,v]) => `${k}(${v})`).join(", ")}
+                        Hits:{" "}
+                        {Object.entries(item.hits || {})
+                          .map(([k, v]) => formatHitLabel(k, v))
+                          .join(", ")}
                       </div>
                     </div>
                   </div>

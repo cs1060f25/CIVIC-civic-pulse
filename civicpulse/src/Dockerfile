@@ -15,14 +15,20 @@ WORKDIR /app
 # Copy node_modules from deps
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy all app files (package.json, next.config.ts, etc.)
-COPY package.json package-lock.json* next.config.ts tsconfig.json ./
-COPY postcss.config.mjs eslint.config.mjs jest.config.js jest.setup.js ./
+# Copy all config files
+COPY package.json package-lock.json* ./
+COPY next.config.ts tsconfig.json postcss.config.mjs ./
+COPY next-env.d.ts ./
 
-# Copy app source code (src/app is now the root of the Next.js app)
-COPY . .
+# Copy app directory (Next.js app router - contains pages, components, lib, etc.)
+COPY app ./app
+
+# Patch the problematic minify-webpack-plugin to fix WebpackError constructor issue
+RUN sed -i 's/new _webpack\.WebpackError(/new Error(/g' /app/node_modules/next/dist/build/webpack/plugins/minify-webpack-plugin/src/index.js || true
 
 # Build the application
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV CIVICPULSE_SKIP_DB=true
 RUN npm run build
 
 # Production image
@@ -36,9 +42,11 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy built application
-COPY --from=builder /app/public ./public
+# Next.js standalone output includes everything needed
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy public directory (Next.js doesn't include it in standalone by default)
+COPY --from=builder --chown=nextjs:nodejs /app/app/public ./public
 
 USER nextjs
 

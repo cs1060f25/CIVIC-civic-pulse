@@ -1,18 +1,16 @@
-version: '3.8'
-
 services:
   # Frontend Next.js application
   frontend:
     build:
-      context: ./src/app
+      context: ./src
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db
     volumes:
-      # Mount backend data directory for database access
-      - ../../backend/data:/app/backend/data
+      # Mount backend db directory for database access
       - ../../backend/db:/app/backend/db:ro
     depends_on:
       - ingestion
@@ -58,9 +56,9 @@ services:
       context: ./src/lm_parser
       dockerfile: Dockerfile
     volumes:
-      - ../backend/processing:/app/backend/processing
-      - ../backend/data:/app/backend/data
-      - ../backend/db:/app/backend/db
+      - ../../backend/processing:/app/backend/processing
+      - ../../backend/data:/app/backend/data
+      - ../../backend/db:/app/backend/db
       - ../../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
     environment:
       - PYTHONUNBUFFERED=1

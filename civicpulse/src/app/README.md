@@ -73,21 +73,27 @@ npm start
 
 ### Database Path
 
-The database path is automatically resolved in `lib/db.ts`. It tries multiple locations:
-1. `backend/data/civicpulse.db` (Docker/standalone)
-2. `../../../backend/data/civicpulse.db` (Local development)
-3. `../../../../backend/data/civicpulse.db` (Alternative)
+The database path is configured via environment variable first, then falls back to sensible defaults:
+1. `CIVICPULSE_DB_PATH` (recommended) or `DATABASE_PATH`
+2. `<repo>/backend/db/civicpulse.db`
+3. Parent-directory fallbacks when running from the monorepo
+
+When running inside Docker the compose file mounts `backend/db` into the frontend container and sets `CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db`.
 
 ### Environment Variables
 
 Create a `.env.local` file if needed:
 
 ```env
-# Database path override (optional)
-DATABASE_PATH=/path/to/civicpulse.db
+# Database path override (recommended for local dev)
+CIVICPULSE_DB_PATH=../backend/db/civicpulse.db
 
 # Next.js environment
 NODE_ENV=development
+
+# Internal builds can skip touching the database
+# (automatically set inside the Docker builder stage)
+# CIVICPULSE_SKIP_DB=true
 ```
 
 ## API Routes

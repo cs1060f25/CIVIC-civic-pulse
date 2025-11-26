@@ -10,6 +10,8 @@ RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 WORKDIR /app
 
 # Copy node_modules from deps
@@ -33,6 +35,8 @@ RUN npm run build
 
 # Production image
 FROM base AS runner
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 WORKDIR /app
 
 ENV NODE_ENV=production

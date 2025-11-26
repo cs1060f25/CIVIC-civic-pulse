@@ -5,6 +5,19 @@
 -- Usage:
 --   sqlite3 backend/data/civicpulse.db < backend/db/schema.sql
 
+-- Users table stores Google-authenticated accounts and their saved workspace state
+CREATE TABLE IF NOT EXISTS users (
+    google_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    picture TEXT,
+    saved_state TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+
 -- Documents table stores scraped files with metadata for tracking and deduplication
 CREATE TABLE IF NOT EXISTS documents (
     -- Unique identifier for this document (typically URL-derived or generated)

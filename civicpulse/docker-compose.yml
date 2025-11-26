@@ -4,14 +4,17 @@ services:
     build:
       context: ./src
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
       - CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db
     volumes:
-      # Mount backend db directory for database access
-      - ../../backend/db:/app/backend/db:ro
+      # Mount backend DB directory for database access (canonical civicpulse.db with documents)
+      - ../backend/db:/app/backend/db:ro
     depends_on:
       - ingestion
       - processing
@@ -25,8 +28,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       # Mount backend directories for data and schema (configs are now in the image)
-      - ../../backend/data:/app/backend/data
-      - ../../backend/db:/app/backend/db:ro
+      - ../backend/data:/app/backend/data
+      - ../backend/db:/app/backend/db:ro
     environment:
       - PYTHONUNBUFFERED=1
     networks:
@@ -40,9 +43,9 @@ services:
       dockerfile: Dockerfile
     volumes:
       # Mount backend directories for processing input/output
-      - ../../backend/processing:/app/backend/processing
-      - ../../backend/data:/app/backend/data
-      - ../../backend/db:/app/backend/db:ro
+      - ../backend/processing:/app/backend/processing
+      - ../backend/data:/app/backend/data
+      - ../backend/db:/app/backend/db:ro
     environment:
       - PYTHONUNBUFFERED=1
       - CIVICPULSE_KEYWORDS=${CIVICPULSE_KEYWORDS:-}
@@ -56,10 +59,10 @@ services:
       context: ./src/lm_parser
       dockerfile: Dockerfile
     volumes:
-      - ../../backend/processing:/app/backend/processing
-      - ../../backend/data:/app/backend/data
-      - ../../backend/db:/app/backend/db
-      - ../../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
+      - ../backend/processing:/app/backend/processing
+      - ../backend/data:/app/backend/data
+      - ../backend/db:/app/backend/db
+      - ../secrets/google_api_key.txt:/run/secrets/google_api_key.txt:ro
     environment:
       - PYTHONUNBUFFERED=1
       - GOOGLE_API_KEY_PATH=/run/secrets/google_api_key.txt

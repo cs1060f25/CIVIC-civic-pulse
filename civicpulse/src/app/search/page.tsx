@@ -5,6 +5,7 @@ import type { DocumentType, FeedItem } from "@/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAppState } from "@/lib/state";
+import { useAuth } from "@/auth/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -12,6 +13,7 @@ const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinan
 
 export default function SearchPage() {
   const { state, addToBrief } = useAppState();
+  const { isAuthenticated } = useAuth();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,12 @@ export default function SearchPage() {
   // Fetch documents from API (with query, document type, and date range filters)
   useEffect(() => {
     async function fetchDocuments() {
+      if (!isAuthenticated) {
+        setDocuments([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       
@@ -40,8 +48,8 @@ export default function SearchPage() {
         const params = new URLSearchParams();
         if (query) params.append("query", query);
         if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
-        if (startDate) params.append("meetingDateFrom", startDate.toISOString().split('T')[0]);
-        if (endDate) params.append("meetingDateTo", endDate.toISOString().split('T')[0]);
+        if (startDate) params.append("meetingDateFrom", startDate.toISOString().split("T")[0]);
+        if (endDate) params.append("meetingDateTo", endDate.toISOString().split("T")[0]);
         // Keep counties filter dormant for now
         params.append("limit", "100");
         
@@ -62,9 +70,28 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, startDate, endDate]); // Include date range in dependencies
+  }, [query, selectedDocTypes, startDate, endDate, isAuthenticated]); // Include date range in dependencies
 
   const results = documents;
+
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-semibold">Sign in to search CivicPulse</h1>
+          <p className="text-[--color-muted]">
+            Use the Sign in button in the header to authenticate with Google. Search and brief tools unlock after authentication.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[--color-brand-600] text-white font-semibold"
+          >
+            Go to login
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full py-8">

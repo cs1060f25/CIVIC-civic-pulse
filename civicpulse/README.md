@@ -176,6 +176,7 @@ Set in `docker-compose.yml` or `.env` file:
 - `NODE_ENV`: Environment for frontend (production/development)
 - `CIVICPULSE_DB_PATH`: Absolute path (inside the container) to `civicpulse.db` so the Next.js API can reach SQLite
 - `CIVICPULSE_SKIP_DB`: Internal flag used during Docker image builds to avoid touching the database (automatically set, no action needed)
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: OAuth client ID from Google Cloud used by the frontend during build and runtime
 
 ## Additional Resources
 

@@ -17,7 +17,19 @@ export async function GET(
       );
     }
 
-    const db = getDb();
+    let db;
+    try {
+      db = getDb();
+    } catch (err) {
+      console.error(
+        "Database not available for /api/documents/[id], returning 404:",
+        err
+      );
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
+    }
     
     const query = `
       SELECT 

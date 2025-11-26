@@ -29,7 +29,27 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get("sortBy") || "meetingDate";
     const sortOrder = searchParams.get("sortOrder") || "desc";
     
-    const db = getDb();
+    let db;
+    try {
+      db = getDb();
+    } catch (err) {
+      console.error(
+        "Database not available for /api/documents, returning empty result set:",
+        err
+      );
+      return NextResponse.json(
+        {
+          documents: [],
+          pagination: {
+            total: 0,
+            limit,
+            offset,
+            hasMore: false,
+          },
+        },
+        { status: 200 }
+      );
+    }
     
     // Check if tables exist
     const tablesCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('documents', 'document_metadata')").all() as { name: string }[];

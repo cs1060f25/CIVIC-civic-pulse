@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Button, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 
 export default function Home() {
   return (
@@ -15,18 +14,9 @@ export default function Home() {
         <p className="text-lg text-[--color-muted] max-w-2xl mx-auto mb-12">
           CivicPulse turns scattered agendas and minutes into clear, searchable signals across jurisdictions—so you can move fast, brief stakeholders, and never miss what matters.
         </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <Link href="/search">
-            <Button className="px-8 py-3 text-base">
-              Start Searching
-            </Button>
-          </Link>
-          <Link href="/brief">
-            <Button variant="secondary" className="px-8 py-3 text-base">
-              Build a Brief
-            </Button>
-          </Link>
-        </div>
+        <p className="text-[--color-muted] text-base">
+          Sign in with your Google account (top right) to unlock search and brief-building tools.
+        </p>
       </section>
 
       {/* Value Proposition */}
@@ -52,9 +42,9 @@ export default function Home() {
             <p className="text-[--color-muted] mb-4">
               Search by keyword, geography, and time. Triage results in seconds with advanced filters and relevance scoring.
             </p>
-            <Link href="/search" className="text-[--color-brand-100] hover:underline text-sm font-medium">
-              Explore search →
-            </Link>
+            <span className="text-[--color-muted] text-sm font-medium">
+              Available after sign-in
+            </span>
           </Card>
 
           <Card className="p-6">
@@ -67,9 +57,9 @@ export default function Home() {
             <p className="text-[--color-muted] mb-4">
               Assemble concise briefs with citations and export in one click. Share insights with stakeholders instantly.
             </p>
-            <Link href="/brief" className="text-[--color-brand-100] hover:underline text-sm font-medium">
-              Build a brief →
-            </Link>
+            <span className="text-[--color-muted] text-sm font-medium">
+              Available after sign-in
+            </span>
           </Card>
 
           <Card className="p-6">
@@ -125,23 +115,14 @@ export default function Home() {
       {/* Final CTA */}
       <section className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-20 text-center">
         <h2 className="text-3xl font-semibold tracking-tight mb-4">
-          Ready to get started?
+          Ready to explore CivicPulse?
         </h2>
-        <p className="text-lg text-[--color-muted] mb-8 max-w-2xl mx-auto">
-          Create your workspace, pick jurisdictions and topics, and let CivicPulse surface the signals that matter to you.
+        <p className="text-lg text-[--color-muted] mb-2 max-w-2xl mx-auto">
+          Click “Sign in” at the top right to authenticate with Google, save your workspace, and resume where you left off.
         </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <Link href="/register">
-            <Button className="px-8 py-3 text-base">
-              Create Free Account
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button variant="secondary" className="px-8 py-3 text-base">
-              Sign In
-            </Button>
-          </Link>
-        </div>
+        <p className="text-[--color-muted]">
+          We’ll remember the briefs you build and any custom tags you apply so your research stays in sync across sessions.
+        </p>
       </section>
     </main>
   );

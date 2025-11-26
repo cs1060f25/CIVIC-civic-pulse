@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.12.2",
     "@types/react-datepicker": "^6.2.0",
     "better-sqlite3": "^12.4.1",
     "next": "15.3.3",

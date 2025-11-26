@@ -2,10 +2,16 @@ id: "lawrence_civicweb"
 
 # Base host and entry (root folder) URL for Lawrence's CivicWeb library
 base_url: "https://lawrenceks.civicweb.net"
-root_folder_url: "/filepro/documents/434370/"
+root_folder_url: "/filepro/documents/"
 
 # City name for output directory structure
 city_name: "Lawrence"
+
+# Navigation path: folder sequence to reach target documents
+navigation_path:
+  - "Minutes"
+  - "City Commission"
+  - "2025"
 
 # Target year to scrape (initial test scope)
 target_year: 2025

@@ -60,12 +60,22 @@ export interface SavedBrief {
   documentCount: number;
 }
 
+export interface SearchUiState {
+  query: string;
+  selectedDocTypes: DocumentType[];
+  counties: string[];
+  meetingDateFrom: string | null; // ISO date (yyyy-mm-dd) or null
+  meetingDateTo: string | null;
+  selectedIds: string[];
+}
+
 export interface AppState {
   preferences: UserPreferences | null;
   savedItemIds: string[];
   followedItemIds: string[];
   briefItemIds: string[];
   savedBriefs: SavedBrief[];
+  searchUi: SearchUiState;
 }
 
 // API Response Types

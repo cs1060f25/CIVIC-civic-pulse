@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AppState, UserPreferences, SavedBrief } from "@/lib/types";
+import type { AppState, UserPreferences, SavedBrief, SearchUiState } from "@/lib/types";
 import { DEFAULT_APP_STATE, normalizeAppState } from "@/lib/appStateDefaults";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -10,6 +10,7 @@ const STORAGE_KEY = "civicpulse_app_state_v1";
 type AppContextType = {
   state: AppState;
   setPreferences: (prefs: UserPreferences) => void;
+  setSearchUi: (updater: (prev: SearchUiState) => SearchUiState) => void;
   toggleSaved: (id: string) => void;
   toggleFollowed: (id: string) => void;
   addToBrief: (id: string) => void;
@@ -132,6 +133,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setState((s) => ({
         ...s,
         preferences: prefs,
+      })),
+    setSearchUi: (updater) =>
+      setState((s) => ({
+        ...s,
+        searchUi: updater(s.searchUi),
       })),
     toggleSaved: (id) =>
       setState((s) => ({

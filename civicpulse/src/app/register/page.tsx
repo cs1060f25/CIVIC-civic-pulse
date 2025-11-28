@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui";
+import { Button } from "@app/components/ui";
 
 interface FormData {
   firstName: string;

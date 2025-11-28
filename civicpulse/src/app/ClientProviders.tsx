@@ -2,8 +2,8 @@
 
 import { ReactNode, useEffect } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { AuthProvider } from "@/auth/AuthContext";
-import { AppProvider } from "@/lib/state";
+import { AuthProvider } from "@app/auth/AuthContext";
+import { AppProvider } from "@app/lib/state";
 
 interface ClientProvidersProps {
   children: ReactNode;

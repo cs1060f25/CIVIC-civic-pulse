@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { DEFAULT_APP_STATE, normalizeAppState } from "@/lib/appStateDefaults";
-import type { AppState } from "@/lib/types";
+import { getDb } from "@app/lib/db";
+import { DEFAULT_APP_STATE, normalizeAppState } from "@app/lib/appStateDefaults";
+import type { AppState } from "@app/lib/types";
 
 export async function GET(request: NextRequest) {
   const googleId = request.nextUrl.searchParams.get("googleId");

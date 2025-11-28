@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui";
+import { Button } from "@app/components/ui";
 
 export default function TermsPage() {
   return (

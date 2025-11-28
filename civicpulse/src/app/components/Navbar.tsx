@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui";
-import { useAuth } from "@/auth/AuthContext";
+import { Button } from "@app/components/ui";
+import { useAuth } from "@app/auth/AuthContext";
 
 const navItems = [
   { href: "/search", label: "Search" },

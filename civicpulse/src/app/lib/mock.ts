@@ -1,4 +1,4 @@
-import type { FeedItem } from "@/lib/types";
+import type { FeedItem } from "@app/lib/types";
 
 export const MOCK_FEED: FeedItem[] = [
   {

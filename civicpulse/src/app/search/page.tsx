@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DocumentType, FeedItem } from "@/lib/types";
+import type { DocumentType, FeedItem } from "@app/lib/types";
 import Link from "next/link";
-import { Badge, Button, Card } from "@/components/ui";
-import { useAppState } from "@/lib/state";
-import { formatHitLabel } from "@/lib/format";
-import { useAuth } from "@/auth/AuthContext";
+import { Badge, Button, Card } from "@app/components/ui";
+import { useAppState } from "@app/lib/state";
+import { formatHitLabel } from "@app/lib/format";
+import { useAuth } from "@app/auth/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 

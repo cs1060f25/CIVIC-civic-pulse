@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { DocumentRow, transformRow } from "@/lib/document-utils";
+import { getDb } from "@app/lib/db";
+import { DocumentRow, transformRow } from "@app/lib/document-utils";
 
 // GET /api/documents/[id]
 export async function GET(

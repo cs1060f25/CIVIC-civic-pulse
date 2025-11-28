@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AppState, UserPreferences, SavedBrief, SearchUiState } from "@/lib/types";
-import { DEFAULT_APP_STATE, normalizeAppState } from "@/lib/appStateDefaults";
-import { useAuth } from "@/auth/AuthContext";
+import type { AppState, UserPreferences, SavedBrief, SearchUiState } from "@app/lib/types";
+import { DEFAULT_APP_STATE, normalizeAppState } from "./appStateDefaults";
+import { useAuth } from "@app/auth/AuthContext";
 
 const STORAGE_KEY = "civicpulse_app_state_v1";
 

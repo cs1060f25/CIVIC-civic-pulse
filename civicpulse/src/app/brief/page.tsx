@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppState } from "@/lib/state";
-import { SavedBrief } from "@/lib/types";
-import type { FeedItem } from "@/lib/types";
-import { Button, Card } from "@/components/ui";
+import { useAppState } from "../lib/state";
+import { SavedBrief } from "../lib/types";
+import type { FeedItem } from "../lib/types";
+import { Button, Card } from "../components/ui";
 import Link from "next/link";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "../auth/AuthContext";
 
 // Mock documents for testing (same as in search page)
 const MOCK_DOCUMENTS: FeedItem[] = [

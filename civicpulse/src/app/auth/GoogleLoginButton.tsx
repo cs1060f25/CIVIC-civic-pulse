@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "@app/auth/AuthContext";
 
 interface GoogleLoginButtonProps {
   className?: string;

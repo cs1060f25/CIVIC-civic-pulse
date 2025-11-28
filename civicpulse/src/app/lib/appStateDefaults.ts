@@ -1,4 +1,4 @@
-import type { AppState, DocumentType } from "@/lib/types";
+import type { AppState, DocumentType } from "@app/lib/types";
 
 const defaultDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo"];
 

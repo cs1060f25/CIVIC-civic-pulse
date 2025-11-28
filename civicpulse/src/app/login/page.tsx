@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/auth/AuthContext";
-import { GoogleLoginButton } from "@/auth/GoogleLoginButton";
+import { useAuth } from "@app/auth/AuthContext";
+import { GoogleLoginButton } from "@app/auth/GoogleLoginButton";
 
 export default function LoginPage() {
   const router = useRouter();

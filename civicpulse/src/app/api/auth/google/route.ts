@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { DEFAULT_APP_STATE, normalizeAppState } from "@/lib/appStateDefaults";
+import { getDb } from "@app/lib/db";
+import { DEFAULT_APP_STATE, normalizeAppState } from "@app/lib/appStateDefaults";
 
 export async function POST(request: NextRequest) {
   try {

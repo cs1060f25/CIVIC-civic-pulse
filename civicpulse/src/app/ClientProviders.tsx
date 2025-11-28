@@ -2,8 +2,8 @@
 
 import { ReactNode, useEffect } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { AuthProvider } from "@/auth/AuthContext";
-import { AppProvider } from "@/lib/state";
+import { AuthProvider } from "@app/auth/AuthContext";
+import { AppProvider } from "@app/lib/state";
 
 interface ClientProvidersProps {
   children: ReactNode;
@@ -22,7 +22,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
   if (!clientId) {
     return (
-      <AuthProvider>
+      <AuthProvider googleOAuthEnabled={false}>
         <AppProvider>{children}</AppProvider>
       </AuthProvider>
     );
@@ -30,7 +30,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <AuthProvider>
+      <AuthProvider googleOAuthEnabled>
         <AppProvider>{children}</AppProvider>
       </AuthProvider>
     </GoogleOAuthProvider>

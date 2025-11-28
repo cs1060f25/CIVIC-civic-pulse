@@ -1,6 +1,6 @@
 "use client";
 
-import type { AppState } from "@/lib/types";
+import type { AppState } from "@app/lib/types";
 
 export interface CivicUser {
   googleId: string;

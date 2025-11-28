@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb } from "@app/lib/db";
 import { randomUUID } from "crypto";
-import { DocumentRow, transformRow } from "@/lib/document-utils";
+import { DocumentRow, transformRow } from "@app/lib/document-utils";
 
 // GET /api/documents
 export async function GET(request: NextRequest) {

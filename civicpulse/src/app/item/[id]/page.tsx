@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import type { FeedItem } from "../../lib/types";
-import { SplitViewer } from "../../components/SplitViewer";
-import { TranscriptViewer } from "../../components/TranscriptViewer";
+import type { FeedItem } from "@app/lib/types";
+import { SplitViewer } from "@app/components/SplitViewer";
+import { TranscriptViewer } from "@app/components/TranscriptViewer";
 import Link from "next/link";
-import { Button, Card, Badge } from "../../components/ui";
-import { useAppState } from "../../lib/state";
-import { formatTopicLabel } from "../../lib/format";
+import { Button, Card, Badge } from "@app/components/ui";
+import { useAppState } from "@app/lib/state";
+import { formatTopicLabel } from "@app/lib/format";
 import ReactMarkdown from "react-markdown";
 
 // Mock documents for testing (same as Search/Brief pages)

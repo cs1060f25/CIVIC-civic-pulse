@@ -22,7 +22,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
   if (!clientId) {
     return (
-      <AuthProvider>
+      <AuthProvider googleOAuthEnabled={false}>
         <AppProvider>{children}</AppProvider>
       </AuthProvider>
     );
@@ -30,7 +30,7 @@ export function ClientProviders({ children }: ClientProvidersProps) {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <AuthProvider>
+      <AuthProvider googleOAuthEnabled>
         <AppProvider>{children}</AppProvider>
       </AuthProvider>
     </GoogleOAuthProvider>

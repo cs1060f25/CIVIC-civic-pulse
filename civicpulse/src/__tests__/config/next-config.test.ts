@@ -107,15 +107,13 @@ describe('Native Module Bindings', () => {
     expect(fs.existsSync(bindingsPath)).toBe(true);
   });
 
-  it('better-sqlite3 should be loadable', () => {
+  it('better-sqlite3 should be loadable', async () => {
     // This is the core test - can we actually load the module?
-    expect(() => {
-      require('better-sqlite3');
-    }).not.toThrow();
+    await expect(import('better-sqlite3')).resolves.toBeDefined();
   });
 
-  it('better-sqlite3 should be able to create database', () => {
-    const Database = require('better-sqlite3');
+  it('better-sqlite3 should be able to create database', async () => {
+    const { default: Database } = await import('better-sqlite3');
     const db = new Database(':memory:');
     
     expect(db.open).toBe(true);

@@ -5,7 +5,7 @@
  * used across the application.
  */
 
-import { parseJSON, transformRow, DocumentRow, FeedItem } from '@app/lib/document-utils';
+import { parseJSON, transformRow, DocumentRow } from '@app/lib/document-utils';
 
 describe('parseJSON', () => {
   it('should parse valid JSON string', () => {

@@ -23,11 +23,6 @@ jest.mock('@app/lib/db', () => ({
   },
 }));
 
-// Helper to create mock NextRequest
-function createMockRequest(url: string, options: RequestInit = {}): Request {
-  return new Request(`http://localhost:3000${url}`, options);
-}
-
 describe('Documents API Routes', () => {
   beforeEach(() => {
     // Create fresh in-memory database for each test

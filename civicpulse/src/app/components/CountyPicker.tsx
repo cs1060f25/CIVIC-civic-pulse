@@ -130,6 +130,7 @@ export function CountyPicker({ selected, onChange, placeholder = "Search countie
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -143,6 +144,7 @@ export function CountyPicker({ selected, onChange, placeholder = "Search countie
           aria-label="Search counties"
           aria-expanded={isOpen}
           aria-autocomplete="list"
+          aria-controls="county-listbox"
         />
       </div>
 
@@ -160,7 +162,7 @@ export function CountyPicker({ selected, onChange, placeholder = "Search countie
               {query ? "No matching counties" : "All counties selected"}
             </div>
           ) : (
-            <ul role="listbox">
+            <ul role="listbox" id="county-listbox">
               {filteredCounties.map((county, index) => (
                 <li
                   key={county}

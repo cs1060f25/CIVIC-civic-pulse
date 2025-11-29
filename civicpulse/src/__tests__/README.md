@@ -31,6 +31,27 @@ Tests for data transformation utilities:
 - **Null Handling**: Proper defaults for missing fields
 - **Type Coercion**: Correct handling of impact levels, arrays, objects
 
+### `api/counties.test.ts` - Counties API Tests
+
+Tests for the `/api/counties` endpoint:
+
+- **County Extraction**: Parses JSON arrays from document_metadata.counties
+- **Deduplication**: Ensures unique counties across all documents
+- **Sorting**: Alphabetical ordering of county names
+- **Edge Cases**: Empty arrays, malformed JSON, whitespace handling
+- **Filter Integration**: Verifies county filter works in document queries
+
+### `components/CountyPicker.test.ts` - CountyPicker Component Tests
+
+Tests for the CountyPicker component logic:
+
+- **County Filtering**: Case-insensitive search, exclusion of selected
+- **Selection Management**: Add/remove counties, prevent duplicates
+- **Text Highlighting**: Match highlighting for autocomplete
+- **Keyboard Navigation**: Escape, Backspace, Enter key handling
+- **API Response Handling**: Processing counties endpoint response
+- **Search Integration**: URL parameter building with counties filter
+
 ### `api/documents.test.ts` - API Route Tests
 
 Integration tests for the documents API using an in-memory database:

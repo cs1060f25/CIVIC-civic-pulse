@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { DocumentType, FeedItem } from "@app/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@app/components/ui";
+import { CountyPicker } from "@app/components/CountyPicker";
 import { useAppState } from "@app/lib/state";
 import { formatHitLabel } from "@app/lib/format";
 import { useAuth } from "@app/auth/AuthContext";
@@ -59,9 +60,9 @@ export default function SearchPage() {
         const params = new URLSearchParams();
         if (query) params.append("query", query);
         if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
+        if (counties.length > 0) params.append("counties", counties.join(","));
         if (meetingDateFrom) params.append("meetingDateFrom", meetingDateFrom);
         if (meetingDateTo) params.append("meetingDateTo", meetingDateTo);
-        // Keep counties filter dormant for now
         params.append("limit", "100");
         
         const response = await fetch(`/api/documents?${params.toString()}`);
@@ -81,7 +82,7 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, meetingDateFrom, meetingDateTo, isAuthenticated]); // Include date range in dependencies
+  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated]);
 
   const results = documents;
 
@@ -167,27 +168,17 @@ export default function SearchPage() {
           </Card>
           <Card>
             <div className="text-sm font-medium">Counties</div>
-            <div className="text-xs text-gray-500 mt-1">Filter currently disabled</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["Sedgwick County", "Johnson", "Douglas", "Wyandotte"].map((c) => {
-                const active = counties.includes(c);
-                return (
-                  <button
-                    type="button"
-                    key={c}
-                    aria-pressed={active}
-                    onClick={() =>
-                      setSearchUi((prev) => ({
-                        ...prev,
-                        counties: toggle(prev.counties, c),
-                      }))
-                    }
-                    className={`chip ${active ? "ring-2 ring-[--ring-color] bg-[color-mix(in_oklab,var(--brand-500)_20%,transparent)] border-[color-mix(in_oklab,var(--brand-500)_40%,transparent)] text-[--color-brand-100]" : ""}`}
-                  >
-                    {c}
-                  </button>
-                );
-              })}
+            <div className="mt-2">
+              <CountyPicker
+                selected={counties}
+                onChange={(newCounties) =>
+                  setSearchUi((prev) => ({
+                    ...prev,
+                    counties: newCounties,
+                  }))
+                }
+                placeholder="Type to search counties..."
+              />
             </div>
           </Card>
           <Card>

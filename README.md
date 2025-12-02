@@ -1,5 +1,7 @@
 # CivicPulse
 
+**🌐 Live Site:** [https://civicpulse.dev](https://civicpulse.dev)
+
 CivicPulse helps track local government documents and policy changes across Kansas. The platform aggregates agendas, minutes, ordinances, and other public documents from county and city meetings, making it easy to discover local trends before they break nationally.
 
 ## Project Resources

@@ -1,0 +1,4 @@
+name: civicpulse
+runtime: nodejs
+description: CivicPulse infrastructure on GCP Kubernetes
+

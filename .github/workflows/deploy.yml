@@ -1,54 +1,180 @@
-name: CI/CD
+name: Deploy to Kubernetes
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  GCP_PROJECT: civic-pulse-480006
+  GCP_REGION: us-central1
+  IMAGE_REGISTRY: gcr.io
+  CLUSTER_NAME: civicpulse-cluster
 
 jobs:
-  test:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # For Workload Identity Federation
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: civicpulse/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-        working-directory: civicpulse
-      
-      - name: Lint
-        run: npm run lint
-        working-directory: civicpulse
-      
-      - name: Build
-        run: npm run build
-        working-directory: civicpulse
-        env:
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          cache-dependency-path: infrastructure/package-lock.json
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Set up Pulumi
+        uses: pulumi/actions@v4
         with:
-          host: 34.172.180.26
-          username: gbrock
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            cd ~/CIVIC-civic-pulse
-            git pull origin main
-            cd civicpulse
-            npm ci
-            npm run build
-            pm2 restart civicpulse
+          pulumi-version: latest
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Get Google Client ID from Pulumi config
+        id: get-config
+        working-directory: infrastructure
+        run: |
+          pulumi stack select dev || pulumi stack init dev
+          GOOGLE_CLIENT_ID=$(pulumi config get civicpulse:googleClientId --plaintext || echo "")
+          echo "client_id=$GOOGLE_CLIENT_ID" >> $GITHUB_OUTPUT
+          if [ -z "$GOOGLE_CLIENT_ID" ]; then
+            echo "Warning: Google Client ID not found in Pulumi config"
+            exit 1
+          fi
+
+      - name: Build and push Frontend image
+        working-directory: civicpulse
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="${{ steps.get-config.outputs.client_id }}" \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:latest \
+            -f src/Dockerfile .
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:latest
+
+      - name: Build and push Ingestion image
+        working-directory: civicpulse/src/ingestion
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:latest \
+            -f Dockerfile .
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:latest
+
+      - name: Build and push Processing image
+        working-directory: civicpulse/src/processing
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:latest \
+            -f Dockerfile .
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:latest
+
+      - name: Build and push LM Parser image
+        working-directory: civicpulse/src/lm_parser
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:latest \
+            -f Dockerfile .
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:latest
+
+      - name: Install Pulumi dependencies
+        working-directory: infrastructure
+        run: npm ci
+
+      - name: Configure Pulumi
+        working-directory: infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi login
+          pulumi stack select dev || pulumi stack init dev
+          # Ensure config is set
+          pulumi config set gcp:project ${{ env.GCP_PROJECT }} --plaintext
+          pulumi config set gcp:region ${{ env.GCP_REGION }} --plaintext
+          pulumi config set civicpulse:gkeClusterName ${{ env.CLUSTER_NAME }} --plaintext
+          pulumi config set civicpulse:googleClientId "${{ steps.get-config.outputs.client_id }}" --plaintext
+
+      - name: Preview Pulumi changes
+        working-directory: infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: pulumi preview --diff
+
+      - name: Deploy with Pulumi
+        working-directory: infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: pulumi up --yes
+
+      - name: Get deployment outputs
+        id: get-outputs
+        working-directory: infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          echo "Frontend URL: $(pulumi stack output frontendUrl --show-secrets)"
+          echo "Cluster Endpoint: $(pulumi stack output clusterEndpoint --show-secrets)"
+          NAMESPACE=$(pulumi stack output namespaceNameOutput --show-secrets || echo "")
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --project ${{ env.GCP_PROJECT }}
+
+      - name: Restart deployments
+        id: restart
+        run: |
+          NAMESPACE="${{ steps.get-outputs.outputs.namespace }}"
+          if [ -z "$NAMESPACE" ]; then
+            # Fallback: try to get namespace from kubectl
+            NAMESPACE=$(kubectl get namespaces -o jsonpath='{.items[?(@.metadata.labels.app=="civicpulse")].metadata.name}' | head -n1)
+          fi
+          if [ -z "$NAMESPACE" ]; then
+            echo "Warning: Could not determine namespace, skipping rollout restart"
+            exit 0
+          fi
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "Restarting deployments in namespace: $NAMESPACE"
+          kubectl rollout restart deployment/frontend -n "$NAMESPACE" || true
+          kubectl rollout restart deployment/ingestion -n "$NAMESPACE" || true
+          kubectl rollout restart deployment/processing -n "$NAMESPACE" || true
+          kubectl rollout restart deployment/lm-parser -n "$NAMESPACE" || true
+
+      - name: Wait for rollouts to complete
+        run: |
+          NAMESPACE="${{ steps.restart.outputs.namespace }}"
+          if [ -z "$NAMESPACE" ]; then
+            NAMESPACE=$(kubectl get namespaces -o jsonpath='{.items[?(@.metadata.labels.app=="civicpulse")].metadata.name}' | head -n1)
+          fi
+          if [ -n "$NAMESPACE" ]; then
+            echo "Waiting for rollouts to complete in namespace: $NAMESPACE"
+            kubectl rollout status deployment/frontend -n "$NAMESPACE" --timeout=5m || true
+            kubectl rollout status deployment/ingestion -n "$NAMESPACE" --timeout=2m || true
+            kubectl rollout status deployment/processing -n "$NAMESPACE" --timeout=2m || true
+            kubectl rollout status deployment/lm-parser -n "$NAMESPACE" --timeout=2m || true
+          fi

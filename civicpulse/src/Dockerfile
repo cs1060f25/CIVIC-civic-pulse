@@ -22,16 +22,23 @@ COPY package.json package-lock.json* ./
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
 COPY next-env.d.ts ./
 
-# Copy app directory (Next.js app router - contains pages, components, lib, etc.)
-COPY app ./app
+# Create public directory (icon.ico is in src/app/, not public/)
+# We don't need to copy public/ since favicon is handled via icon.ico in app directory
+RUN mkdir -p ./public
+
+# Copy entire src directory (Next.js app router expects src/app structure)
+# Exclude node_modules to avoid duplicate Next.js installations
+COPY src ./src
+RUN rm -rf ./src/app/node_modules ./src/node_modules 2>/dev/null || true
 
 # Patch the problematic minify-webpack-plugin to fix WebpackError constructor issue
 RUN sed -i 's/new _webpack\.WebpackError(/new Error(/g' /app/node_modules/next/dist/build/webpack/plugins/minify-webpack-plugin/src/index.js || true
 
-# Build the application
+# Build the application (upgraded Next.js should fix minifier bug)
+# Explicitly use webpack instead of Turbopack
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV CIVICPULSE_SKIP_DB=true
-RUN npm run build
+RUN npm run build -- --webpack
 
 # Production image
 FROM base AS runner
@@ -50,7 +57,9 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy public directory (Next.js doesn't include it in standalone by default)
-COPY --from=builder --chown=nextjs:nodejs /app/app/public ./public
+# Copy from root public directory where favicon.ico lives
+RUN mkdir -p ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 

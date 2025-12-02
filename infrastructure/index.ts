@@ -229,6 +229,23 @@ const frontendDeployment = new k8s.apps.v1.Deployment(
                     },
                 },
                 spec: {
+                    initContainers: [
+                        {
+                            name: "fix-db-permissions",
+                            image: "busybox:latest",
+                            command: [
+                                "sh",
+                                "-c",
+                                "chmod 777 /app/backend/db && chmod 666 /app/backend/db/civicpulse.db 2>/dev/null || true",
+                            ],
+                            volumeMounts: [
+                                {
+                                    name: "backend-db",
+                                    mountPath: "/app/backend/db",
+                                },
+                            ],
+                        },
+                    ],
                     containers: [
                         {
                             name: "frontend",

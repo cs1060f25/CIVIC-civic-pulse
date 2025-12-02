@@ -14,9 +14,6 @@ export default function Home() {
         <p className="text-lg text-[--color-muted] max-w-2xl mx-auto mb-12">
           CivicPulse turns scattered agendas and minutes into clear, searchable signals across jurisdictions—so you can move fast, brief stakeholders, and never miss what matters.
         </p>
-        <p className="text-[--color-muted] text-base">
-          Sign in with your Google account (top right) to unlock search and brief-building tools.
-        </p>
       </section>
 
       {/* Value Proposition */}
@@ -117,12 +114,6 @@ export default function Home() {
         <h2 className="text-3xl font-semibold tracking-tight mb-4">
           Ready to explore CivicPulse?
         </h2>
-        <p className="text-lg text-[--color-muted] mb-2 max-w-2xl mx-auto">
-          Click “Sign in” at the top right to authenticate with Google, save your workspace, and resume where you left off.
-        </p>
-        <p className="text-[--color-muted]">
-          We’ll remember the briefs you build and any custom tags you apply so your research stays in sync across sessions.
-        </p>
       </section>
     </main>
   );

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         d.id, d.source_id, d.file_url, d.content_hash, d.bytes_size, d.created_at,
         m.title, m.entity, m.jurisdiction, m.counties, m.meeting_date, m.doc_types,
         m.impact, m.stage, m.topics, m.keyword_hits, m.extracted_text, m.pdf_preview,
-        m.attachments, m.updated_at
+        m.summary, m.full_text, m.attachments, m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
       WHERE 1=1
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
         body.meetingDate || null,
         JSON.stringify(body.docTypes || []),
         JSON.stringify(body.topics || []),
-        body.impact || "Low",
+        body.impact || null,
         body.stage || null,
         JSON.stringify(body.keywordHits || {}),
         JSON.stringify(body.extractedText || []),

@@ -1,73 +1,100 @@
-# Deploy Production Database and Complete CI/CD Pipeline
+# UI/UX Readability and Layout Improvements
 
 ## Summary
-Set up production database access for Kubernetes deployment and complete the CI/CD pipeline to automatically build, deploy, and restart services on merge to main.
+Comprehensive fixes to improve text readability, button visibility, and layout across the CivicPulse frontend, particularly on the search, document detail, and brief pages.
 
-## Problem
-- Production Kubernetes deployment had an empty database, preventing documents from appearing in the search interface
-- CI/CD pipeline was incomplete - missing deployment restart steps after Pulumi updates
-- README lacked production deployment link
+## Changes Made
 
-## Solution
+### 1. Impact Badge Visibility
+- **Issue**: Documents with `null` impact level were showing a green "Low" badge
+- **Fix**: 
+  - Updated `ImpactBadge` component to accept `null` and return `null` when impact is not set
+  - Desktop view now shows "—" when impact is `null` (no badge displayed)
+  - Updated both `search/page.tsx` and `item/[id]/page.tsx`
 
-### Database Setup
-1. **Database Initialization Job** (`infrastructure/init-db-job.yaml`)
-   - Created Kubernetes Job to initialize SQLite database with schema
-   - Ensures database tables exist before frontend starts
+### 2. Table Alignment
+- **Issue**: Impact column and other table cells were misaligned vertically
+- **Fix**:
+  - Added `flex items-center` to all table headers and data cells
+  - Fixed Entity/County column to use `flex flex-col justify-center` for two-line content
+  - Removed `leading-7` from row container that was causing misalignment
+  - All columns now properly aligned at the same height
 
-2. **Database Migration** (`infrastructure/copy-db-pod.yaml`)
-   - Created temporary pod to copy local database file to Kubernetes persistent volume
-   - Migrated 1.4MB database with 21 documents to production environment
-   - Verified database accessibility by frontend pods
+### 3. Button Visibility and Readability
+- **Issue**: Save and "Add to Brief" buttons had invisible or unreadable text
+- **Fix**:
+  - Changed Button component from CSS variables (`bg-[--color-brand-600]`) to explicit Tailwind classes (`bg-blue-600`)
+  - Primary buttons now have explicit blue background with white text
+  - Removed redundant `text-white` className props (primary buttons already have white text)
+  - Updated focus ring to use `focus-visible:ring-blue-500`
 
-### CI/CD Pipeline Updates (`.github/workflows/deploy.yml`)
-1. **Fixed Frontend Build Context**
-   - Corrected build context from `civicpulse/src` to `civicpulse` with Dockerfile path `src/Dockerfile`
-   - Matches local build script configuration
+### 4. Document Type Filter Readability
+- **Issue**: Active filter buttons had white text on purple background (hard to read)
+- **Fix**:
+  - Updated CSS to use dark purple text (`#312e81`) on light purple background (`#e0e7ff`)
+  - Added `!important` to ensure it overrides other styles
+  - Inactive chips now use `text-gray-900` for consistency
 
-2. **Added Deployment Restart Steps**
-   - Get namespace from Pulumi outputs
-   - Configure kubectl to connect to GKE cluster
-   - Restart all deployments (frontend, ingestion, processing, lm-parser) after Pulumi deployment
-   - Wait for rollouts to complete with appropriate timeouts
-   - Ensures new images are pulled and services are restarted after infrastructure updates
+### 5. Brief Page Readability
+- **Issue**: Multiple text elements were hard to read due to light colors
+- **Fix**:
+  - Impact badges: Changed from light text (`text-red-300`, `text-amber-300`, `text-green-300`) to dark text (`text-red-800`, `text-amber-800`, `text-green-800`) on light backgrounds
+  - Document type badges: Changed to `border-gray-300 bg-white text-gray-900`
+  - Topic tags: Changed from `text-indigo-200` to `text-indigo-800` on `bg-indigo-100`
+  - Impact distribution boxes: Updated to dark text on light backgrounds
+  - All muted text: Changed from `text-[--color-muted]` to `text-gray-600`
+  - Labels and headings: Changed to `text-gray-900` for better contrast
+  - Links: Changed to `text-blue-600` for better visibility
 
-### Documentation Updates (`README.md`)
-- Added production deployment link at the top: `**🌐 Live Site:** [https://civicpulse.dev](https://civicpulse.dev)`
+### 6. Search Page Summary Layout
+- **Issue**: Document summaries were constrained to title column width
+- **Fix**:
+  - Restructured table to show summary in a separate full-width row
+  - Summary now spans all 12 columns using `col-span-12`
+  - Removed `line-clamp-2` so full summary is visible
+  - Title column no longer constrained by summary width
 
-## Technical Details
+## Files Changed
 
-### Files Changed
-- `.github/workflows/deploy.yml` - Added deployment restart and rollout status steps
-- `README.md` - Added production URL link
-- `infrastructure/init-db-job.yaml` - New file for database initialization
-- `infrastructure/copy-db-job.yaml` - New file for database copying (temporary)
-- `infrastructure/copy-db-pod.yaml` - New file for database migration (temporary)
+1. `civicpulse/src/app/components/ui.tsx`
+   - Updated Button component to use explicit Tailwind colors
+   - Fixed primary button visibility
 
-### Infrastructure Changes
-- Database now properly initialized in Kubernetes persistent volume
-- All 21 documents accessible in production
-- CI/CD pipeline now fully automated from merge to deployment
+2. `civicpulse/src/app/search/page.tsx`
+   - Fixed impact badge null handling
+   - Fixed table alignment
+   - Restructured summary to span full width
+   - Updated document type filter colors
+
+3. `civicpulse/src/app/item/[id]/page.tsx`
+   - Fixed impact badge null handling
+   - Removed redundant button className props
+
+4. `civicpulse/src/app/brief/page.tsx`
+   - Updated all text colors for readability
+   - Fixed impact badges, document type badges, topic tags
+   - Updated impact distribution boxes
+
+5. `civicpulse/src/app/globals.css`
+   - Updated active chip state CSS for document type filters
 
 ## Testing
-- ✅ Verified database file exists in Kubernetes PVC (1.4MB)
-- ✅ Confirmed frontend can connect to database
-- ✅ Tested API endpoint returns 21 documents
-- ✅ Verified documents appear in search interface at https://civicpulse.dev
+- [x] Verify impact badges show "—" for null impact levels
+- [x] Verify table columns are properly aligned
+- [x] Verify all buttons have readable text
+- [x] Verify document type filters are readable when active
+- [x] Verify brief page has readable text throughout
+- [x] Verify summaries span full table width on search page
 
-## Deployment Notes
-- Database migration was a one-time operation
-- Future deployments will use the existing persistent volume
-- CI/CD pipeline will automatically restart services on each merge to main
+## Deployment
+1. Upload database to Kubernetes: `.\upload-db-to-k8s.ps1`
+2. Build and push frontend image: `cd infrastructure && .\build-images.ps1`
+3. Update Kubernetes: `pulumi up --yes`
+4. Restart frontend deployment: `kubectl rollout restart deployment/frontend -n civicpulse-104c2bda`
 
-## Related
-- Production deployment: https://civicpulse.dev
-- Kubernetes namespace: `civicpulse-104c2bda` (dynamically generated by Pulumi)
-
-## Acceptance Criteria
-- [x] Database initialized in Kubernetes
-- [x] Documents accessible in production
-- [x] CI/CD pipeline includes deployment restart
-- [x] README updated with production link
-- [x] All services restart after Pulumi deployment
+## Related Issues
+- Button visibility issues on document detail page
+- Text readability issues across multiple pages
+- Table alignment issues on search page
+- Impact badge showing incorrect values
 

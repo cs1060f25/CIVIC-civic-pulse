@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allow manual triggering
 
 env:
-  GCP_PROJECT: civicpulse-478722
+  GCP_PROJECT: civic-pulse-480006
   GCP_REGION: us-central1
   IMAGE_REGISTRY: gcr.io
   CLUSTER_NAME: civicpulse-cluster

@@ -250,8 +250,8 @@ export default function SearchPage() {
           
           {/* Desktop Table View - hidden on mobile */}
           {!loading && !error && results.length > 0 && (
-            <div className="hidden lg:block rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-hidden">
-              <div className="grid grid-cols-12 bg-white/10 text-[13px] font-medium border-b border-white/10">
+            <div className="hidden lg:block rounded-[--radius-lg] border border-[--color-foreground]/10 bg-[--color-surface]/80 backdrop-blur overflow-hidden">
+              <div className="grid grid-cols-12 bg-[--color-foreground]/5 text-[13px] font-medium border-b border-[--color-foreground]/10">
                 <div className="col-span-1 px-4 py-3">Select</div>
                 <div className="col-span-4 px-4 py-3">Title</div>
                 <div className="col-span-3 px-4 py-3">Entity / County</div>
@@ -260,7 +260,7 @@ export default function SearchPage() {
                 <div className="col-span-1 px-4 py-3">Impact</div>
               </div>
               {results.map((item, idx) => (
-                <div key={item.id} className={`grid grid-cols-12 border-t border-white/10 text-sm leading-7 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
+                <div key={item.id} className={`grid grid-cols-12 border-t border-[--color-foreground]/10 text-sm leading-7 ${idx % 2 ? "bg-[--color-foreground]/[0.03]" : ""}`}>
                   <div className="col-span-1 px-4 py-4">
                     <input
                       type="checkbox"

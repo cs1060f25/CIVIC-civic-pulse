@@ -53,7 +53,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
           pulumi stack select dev || pulumi stack init dev
-          GOOGLE_CLIENT_ID=$(pulumi config get civicpulse:googleClientId --plaintext || echo "")
+          GOOGLE_CLIENT_ID=$(pulumi config get civicpulse:googleClientId 2>/dev/null || echo "")
           echo "client_id=$GOOGLE_CLIENT_ID" >> $GITHUB_OUTPUT
           if [ -z "$GOOGLE_CLIENT_ID" ]; then
             echo "Warning: Google Client ID not found in Pulumi config"
@@ -113,10 +113,10 @@ jobs:
           pulumi login
           pulumi stack select dev || pulumi stack init dev
           # Ensure config is set
-          pulumi config set gcp:project ${{ env.GCP_PROJECT }} --plaintext
-          pulumi config set gcp:region ${{ env.GCP_REGION }} --plaintext
-          pulumi config set civicpulse:gkeClusterName ${{ env.CLUSTER_NAME }} --plaintext
-          pulumi config set civicpulse:googleClientId "${{ steps.get-config.outputs.client_id }}" --plaintext
+          pulumi config set gcp:project ${{ env.GCP_PROJECT }}
+          pulumi config set gcp:region ${{ env.GCP_REGION }}
+          pulumi config set civicpulse:gkeClusterName ${{ env.CLUSTER_NAME }}
+          pulumi config set civicpulse:googleClientId "${{ steps.get-config.outputs.client_id }}"
 
       - name: Preview Pulumi changes
         working-directory: infrastructure

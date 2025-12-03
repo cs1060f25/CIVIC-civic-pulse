@@ -20,6 +20,8 @@ export interface DocumentRow {
   keyword_hits: string | null;
   extracted_text: string | null;
   pdf_preview: string | null;
+  summary: string | null;
+  full_text: string | null;
   attachments: string | null;
   updated_at: string | null;
 }
@@ -37,12 +39,14 @@ export interface FeedItem {
   counties: string[];
   meetingDate: string | null;
   docTypes: string[];
-  impact: "Low" | "Medium" | "High";
+  impact: "Low" | "Medium" | "High" | null;
   stage?: string;
   topics: string[];
   hits: Record<string, number>;
   extractedText?: string[];
   pdfPreview?: string[];
+  summary?: string;
+  fullText?: string;
   attachments: Record<string, unknown>[];
   updatedAt: string;
 }
@@ -72,12 +76,14 @@ export function transformRow(row: DocumentRow): FeedItem {
     counties: parseJSON<string[]>(row.counties, []),
     meetingDate: row.meeting_date,
     docTypes: parseJSON<string[]>(row.doc_types, []),
-    impact: (row.impact as "Low" | "Medium" | "High") || "Low",
+    impact: (row.impact as "Low" | "Medium" | "High" | null) || null,
     stage: row.stage || undefined,
     topics: parseJSON<string[]>(row.topics, []),
     hits: parseJSON<Record<string, number>>(row.keyword_hits, {}),
     extractedText: parseJSON<string[]>(row.extracted_text, []),
     pdfPreview: parseJSON<string[]>(row.pdf_preview, []),
+    summary: row.summary || undefined,
+    fullText: row.full_text || undefined,
     attachments: parseJSON<Record<string, unknown>[]>(row.attachments, []),
     updatedAt: row.updated_at || row.created_at,
   };

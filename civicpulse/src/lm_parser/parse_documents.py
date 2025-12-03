@@ -85,7 +85,7 @@ class DocumentMetadataSchema(BaseModel):
 	meeting_date: Optional[str] = None  # YYYY-MM-DD
 	doc_types: List[str] = Field(default_factory=list)
 	topics: List[str] = Field(default_factory=list)
-	impact: str = "Low"  # Low | Medium | High
+	impact: Optional[str] = None  # Low | Medium | High | None (user-assigned, not LLM-estimated)
 	stage: Optional[str] = None  # Work Session | Hearing | Vote | Adopted | Draft
 	keyword_hits: Dict[str, Dict[str, int]] = Field(default_factory=dict)  # {topic: {keyword: count}}
 	extracted_text: List[str] = Field(default_factory=list)  # sample paragraphs
@@ -109,10 +109,12 @@ class DocumentMetadataSchema(BaseModel):
 
 	@field_validator("impact")
 	@classmethod
-	def validate_impact(cls, v: str) -> str:
+	def validate_impact(cls, v: Optional[str]) -> Optional[str]:
+		if v is None or v == "":
+			return None
 		allowed = {"Low", "Medium", "High"}
 		if v not in allowed:
-			return "Low"
+			return None
 		return v
 	
 	@field_validator("topics")
@@ -126,6 +128,39 @@ class DocumentMetadataSchema(BaseModel):
 		if not valid_topics:
 			return ["other"]
 		return valid_topics
+	
+	@field_validator("pdf_preview", mode="before")
+	@classmethod
+	def validate_pdf_preview(cls, v: Optional[List[str]]) -> List[str]:
+		"""Convert None to empty list for pdf_preview."""
+		if v is None:
+			return []
+		return v if isinstance(v, list) else []
+	
+	@field_validator("attachments", mode="before")
+	@classmethod
+	def validate_attachments(cls, v: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+		"""Convert None to empty list for attachments."""
+		if v is None:
+			return []
+		return v if isinstance(v, list) else []
+	
+	@field_validator("stage", mode="before")
+	@classmethod
+	def validate_stage(cls, v: Any) -> Optional[str]:
+		"""Handle stage as string or list - take first value if list."""
+		if v is None or v == "":
+			return None
+		if isinstance(v, list):
+			# If it's a list, take the first valid string value
+			if len(v) > 0 and isinstance(v[0], str):
+				return v[0]
+			return None
+		if isinstance(v, str):
+			# Validate it's one of the allowed values
+			allowed = {"Work Session", "Hearing", "Vote", "Adopted", "Draft"}
+			return v if v in allowed else None
+		return None
 
 
 SYSTEM_INSTRUCTIONS = (
@@ -151,7 +186,7 @@ HUMAN_TEMPLATE = (
 	"- meeting_date: ISO date YYYY-MM-DD. Extract from filename date if present, or from document text.\n"
 	"- doc_types: one or more of [Agenda, Minutes, Ordinance, Staff Memo, Packet, Resolution, Hearing Notice, Draft]. Use filename type if available.\n"
 	"- topics: select one or more topic labels from the available topics list above. A document can have multiple topics. If no topics match, use [\"other\"]. Use the exact topic label names (e.g., \"housing_and_zoning\", \"taxes_and_budget\").\n"
-	"- impact: one of Low, Medium, High based on policy significance.\n"
+	"- impact: DO NOT estimate impact level. Always return null. Impact level is user-assigned, not LLM-estimated.\n"
 	"- stage: one of [Work Session, Hearing, Vote, Adopted, Draft] if indicated.\n"
 	"- keyword_hits: map of topic labels (from the 14 standard topics, NOT \"other\") to related keywords and their counts. For each topic that applies to the document, identify relevant keywords/n-grams related to that topic and count their occurrences. Format: {{\"education\": {{\"curriculum\": 5, \"K-12\": 3, \"school district\": 2}}, \"housing_and_zoning\": {{\"zoning\": 4, \"residential\": 2}}}}. Only include topics that are in the document's topics list. Do not include \"other\" in keyword_hits.\n"
 	"- extracted_text: 1-3 short representative sentences or paragraphs from the document.\n"
@@ -337,15 +372,16 @@ def insert_document_records(
 	bytes_size: int,
 	meta: DocumentMetadataSchema,
 	full_text: Optional[str] = None,
+	pdf_data: Optional[bytes] = None,
 ) -> None:
 	cur = conn.cursor()
 	try:
 		cur.execute(
 			"""
-			INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size)
-			VALUES (?, ?, ?, ?, ?)
+			INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size, pdf_data)
+			VALUES (?, ?, ?, ?, ?, ?)
 			""",
-			(doc_id, source_id, file_url, content_hash, bytes_size),
+			(doc_id, source_id, file_url, content_hash, bytes_size, pdf_data),
 		)
 		cur.execute(
 			"""
@@ -393,6 +429,58 @@ def resolve_bytes_for_pdf(processing_json_path: Path, processing_obj: Dict[str, 
 		return 0
 
 
+def find_pdf_for_txt(txt_path: Path, pdf_base_dir: Optional[Path] = None) -> Optional[bytes]:
+	"""
+	Find and read the corresponding PDF file for a .txt file.
+	Looks for PDFs in:
+	1. Same directory as .txt file
+	2. pdf_base_dir (if provided) - e.g., backend/data/raw notes/Wichita
+	3. Parent directories
+	
+	Returns PDF binary data or None if not found.
+	"""
+	txt_name = txt_path.stem  # filename without extension
+	txt_dir = txt_path.parent
+	
+	# Try same directory first
+	pdf_path = txt_dir / f"{txt_name}.pdf"
+	if pdf_path.exists() and pdf_path.is_file():
+		try:
+			with open(pdf_path, "rb") as f:
+				return f.read()
+		except Exception as e:
+			print(f"Warning: Failed to read PDF {pdf_path}: {e}", file=sys.stderr)
+	
+	# Try pdf_base_dir if provided
+	if pdf_base_dir and pdf_base_dir.exists():
+		# Search recursively in pdf_base_dir
+		for pdf_file in pdf_base_dir.rglob(f"{txt_name}.pdf"):
+			if pdf_file.is_file():
+				try:
+					with open(pdf_file, "rb") as f:
+						return f.read()
+				except Exception as e:
+					print(f"Warning: Failed to read PDF {pdf_file}: {e}", file=sys.stderr)
+		
+		# Try variations (remove underscores, change separators)
+		variations = [
+			txt_name,
+			txt_name.replace("_", "-"),
+			txt_name.replace("-", "_"),
+			txt_name.replace("_", " "),
+		]
+		for var in variations:
+			for pdf_file in pdf_base_dir.rglob(f"{var}.pdf"):
+				if pdf_file.is_file():
+					try:
+						with open(pdf_file, "rb") as f:
+							return f.read()
+					except Exception as e:
+						print(f"Warning: Failed to read PDF {pdf_file}: {e}", file=sys.stderr)
+	
+	return None
+
+
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Parse local government documents into structured metadata and write to SQLite.")
 	parser.add_argument("--input_dir", default=DEFAULT_INPUT_DIR, help="Directory containing processing JSON outputs or .txt files")
@@ -402,6 +490,7 @@ def main() -> None:
 	parser.add_argument("--url_prefix", default="local:", help="Prefix to attach to file paths for file_url")
 	parser.add_argument("--limit", type=int, default=0, help="Optional limit on number of files to process")
 	parser.add_argument("--mode", choices=["json", "txt", "auto"], default="auto", help="Processing mode: json (JSON files), txt (.txt files), or auto (both)")
+	parser.add_argument("--pdf_dir", type=str, default=None, help="Directory containing PDF files to match with .txt files (e.g., backend/data/raw notes/Wichita)")
 	args = parser.parse_args()
 
 	# API key (use GOOGLE_API_KEY only)
@@ -412,6 +501,7 @@ def main() -> None:
 
 	input_dir = Path(args.input_dir)
 	db_path = Path(args.db_path)
+	pdf_dir = Path(args.pdf_dir) if args.pdf_dir else None
 	
 	# Ensure database exists and schema is initialized
 	ensure_db(db_path)
@@ -532,6 +622,14 @@ def main() -> None:
 				file_rel = p.name
 			file_url = f"{args.url_prefix}{file_rel}"
 
+			# Try to find and read corresponding PDF
+			pdf_data = find_pdf_for_txt(p, pdf_dir)
+			if pdf_data:
+				bytes_size = len(pdf_data)  # Use PDF size instead of text size
+				print(f"  -> found PDF ({len(pdf_data)} bytes)", flush=True)
+			else:
+				print(f"  -> PDF not found for {p.name}", flush=True)
+
 			try:
 				insert_document_records(
 					conn=conn,
@@ -542,8 +640,9 @@ def main() -> None:
 					bytes_size=bytes_size,
 					meta=meta,
 					full_text=full_text,  # Store full text content
+					pdf_data=pdf_data,  # Store PDF binary data
 				)
-				print(f"  -> inserted document {doc_id[:12]}... with full text ({len(full_text)} chars)", flush=True)
+				print(f"  -> inserted document {doc_id[:12]}... with full text ({len(full_text)} chars) and PDF ({len(pdf_data) if pdf_data else 0} bytes)", flush=True)
 			except sqlite3.IntegrityError as e:
 				# Likely duplicate by content_hash; try to update full_text if missing
 				try:

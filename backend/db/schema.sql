@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS documents (
     -- Size of the document in bytes
     bytes_size INTEGER NOT NULL,
     
+    -- PDF binary data (BLOB) - stores the original PDF file
+    pdf_data BLOB,
+    
     -- ISO 8601 timestamp of when the document was first processed
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -68,7 +71,7 @@ CREATE TABLE IF NOT EXISTS document_metadata (
     topics TEXT NOT NULL DEFAULT '[]',        -- e.g., '["housing_and_zoning", "taxes_and_budget"]'
     
     -- Impact and stage
-    impact TEXT NOT NULL DEFAULT 'Low',       -- "Low" | "Medium" | "High"
+    impact TEXT,                              -- "Low" | "Medium" | "High" | NULL (user-assigned, not LLM-estimated)
     stage TEXT,                               -- "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft"
     
     -- Search relevance (JSON object: {topic: {keyword: count}})

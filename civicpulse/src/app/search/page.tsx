@@ -285,30 +285,22 @@ export default function SearchPage() {
                   </div>
                   <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100]">{item.title}</Link>
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-foreground] hover:text-[--color-brand-300]">{item.title}</Link>
                       {state.briefItemIds.includes(item.id) && (
                         <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
                       )}
                     </div>
-                    <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-foreground] hover:text-[--color-brand-300]">{item.title}</Link>
-                        {state.briefItemIds.includes(item.id) && (
-                          <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="col-span-2 px-4 py-4 overflow-hidden break-words flex flex-col justify-center">
-                      <div className="font-medium text-xs text-[--color-foreground]">{item.entity}</div>
-                      <div className="text-xs text-[--color-muted]">{item.jurisdiction}</div>
-                    </div>
-                    <div className="col-span-1 px-4 py-4 text-xs text-[--color-muted] overflow-hidden text-ellipsis flex items-center">{item.docTypes.join(", ")}</div>
-                    <div className="col-span-2 px-4 py-4 text-xs text-[--color-muted] whitespace-nowrap flex items-center">
-                      {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                    </div>
-                    <div className="col-span-2 px-4 py-4 flex items-center">
-                      {item.impact ? <ImpactBadge level={item.impact} /> : <span className="text-xs text-[--color-muted]">—</span>}
-                    </div>
+                  </div>
+                  <div className="col-span-2 px-4 py-4 overflow-hidden break-words flex flex-col justify-center">
+                    <div className="font-medium text-xs text-[--color-foreground]">{item.entity}</div>
+                    <div className="text-xs text-[--color-muted]">{item.jurisdiction}</div>
+                  </div>
+                  <div className="col-span-1 px-4 py-4 text-xs text-[--color-muted] overflow-hidden text-ellipsis flex items-center">{item.docTypes.join(", ")}</div>
+                  <div className="col-span-2 px-4 py-4 text-xs text-[--color-muted] whitespace-nowrap flex items-center">
+                    {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                  </div>
+                  <div className="col-span-2 px-4 py-4 flex items-center">
+                    {item.impact ? <ImpactBadge level={item.impact} /> : <span className="text-xs text-[--color-muted]">—</span>}
                   </div>
                   {item.summary && (
                     <div className="col-span-12 px-4 pb-4 pt-0">

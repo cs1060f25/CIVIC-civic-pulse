@@ -422,17 +422,17 @@ export default function BriefPage() {
         <div className="lg:col-span-2">
           <Card className="p-5">
             {loading && (
-              <div className="text-sm text-gray-600">Loading documents...</div>
+              <div className="text-sm text-[--color-muted]">Loading documents...</div>
             )}
             
             {error && (
-              <div className="text-sm text-red-600">Error: {error}</div>
+              <div className="text-sm text-[--color-danger]">Error: {error}</div>
             )}
             
             {!loading && !error && documents.length === 0 && (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-[--color-muted]">
                 No items in your brief yet. Add documents from the{" "}
-                <Link href="/search" className="text-blue-600 hover:underline">
+                <Link href="/search" className="text-[--color-brand-400] hover:underline">
                   Search page
                 </Link>
                 .
@@ -450,11 +450,11 @@ export default function BriefPage() {
                       <div className="flex-1 min-w-0">
                         <Link
                           href={`/item/${item.id}`}
-                          className="font-medium hover:underline text-gray-900 block"
+                          className="font-medium hover:underline text-[--color-foreground] hover:text-[--color-brand-300] block"
                         >
                           {item.title}
                         </Link>
-                        <div className="text-xs text-gray-600 mt-1">
+                        <div className="text-xs text-[--color-muted] mt-1">
                           {item.entity} — {item.jurisdiction}
                         </div>
                         <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -463,10 +463,10 @@ export default function BriefPage() {
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                 item.impact === "High"
-                                  ? "bg-red-100 text-red-800 border border-red-200"
+                                  ? "bg-red-500/20 text-red-300 border border-red-500/30"
                                   : item.impact === "Medium"
-                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                  : "bg-green-100 text-green-800 border border-green-200"
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                  : "bg-green-500/20 text-green-300 border border-green-500/30"
                               }`}
                             >
                               {item.impact} Impact
@@ -477,7 +477,7 @@ export default function BriefPage() {
                           {item.docTypes.map((type) => (
                             <span
                               key={type}
-                              className="px-2 py-0.5 rounded text-[10px] border border-gray-300 bg-white text-gray-900"
+                              className="px-2 py-0.5 rounded text-[10px] border border-white/20 bg-white/5 text-[--color-foreground]"
                             >
                               {type}
                             </span>
@@ -485,7 +485,7 @@ export default function BriefPage() {
                           
                           {/* Meeting Date */}
                           {item.meetingDate && (
-                            <span className="text-xs text-gray-600">
+                            <span className="text-xs text-[--color-muted]">
                               {new Date(item.meetingDate).toLocaleDateString(undefined, {
                                 month: "short",
                                 day: "numeric",
@@ -501,7 +501,7 @@ export default function BriefPage() {
                             {item.topics.map((topic) => (
                               <span
                                 key={topic}
-                                className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-100 text-indigo-800 border border-indigo-200"
+                                className="px-2 py-0.5 rounded-full text-[10px] bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                               >
                                 {topic}
                               </span>
@@ -530,70 +530,70 @@ export default function BriefPage() {
         <aside className="space-y-6">
           {/* Metadata Card */}
           <Card className="p-5">
-            <div className="font-medium mb-4 text-gray-900">Brief Metadata</div>
+            <div className="font-medium mb-4 text-[--color-foreground]">Brief Metadata</div>
             <div className="grid gap-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Items</span>
-                <span className="font-medium text-gray-900">{itemCount}</span>
+                <span className="text-[--color-muted]">Items</span>
+                <span className="font-medium text-[--color-foreground]">{itemCount}</span>
               </div>
               
               <div>
-                <div className="text-gray-600 mb-1">Counties</div>
-                <div className="text-xs text-gray-900">
+                <div className="text-[--color-muted] mb-1">Counties</div>
+                <div className="text-xs text-[--color-foreground]">
                   {allCounties.length ? allCounties.join(", ") : "—"}
                 </div>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Date range</span>
-                <span className="text-xs text-gray-900">{dateRange}</span>
+                <span className="text-[--color-muted]">Date range</span>
+                <span className="text-xs text-[--color-foreground]">{dateRange}</span>
               </div>
               
               <div>
-                <div className="text-gray-600 mb-1">Doc types</div>
-                <div className="text-xs text-gray-900">
+                <div className="text-[--color-muted] mb-1">Doc types</div>
+                <div className="text-xs text-[--color-foreground]">
                   {docTypes.length ? docTypes.join(", ") : "—"}
                 </div>
               </div>
               
               <div>
-                <div className="text-gray-600 mb-2">Topics</div>
+                <div className="text-[--color-muted] mb-2">Topics</div>
                 <div className="flex flex-wrap gap-1">
                   {allTopics.length > 0 ? (
                     allTopics.map((topic) => (
                       <span
                         key={topic}
-                        className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-100 text-indigo-800 border border-indigo-200"
+                        className="px-2 py-0.5 rounded-full text-[10px] bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                       >
                         {topic}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-gray-600">—</span>
+                    <span className="text-xs text-[--color-muted]">—</span>
                   )}
                 </div>
               </div>
               
               <div className="mt-2">
-                <div className="text-gray-600 mb-2">Impact Distribution</div>
+                <div className="text-[--color-muted] mb-2">Impact Distribution</div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-md border border-red-200 bg-red-100 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-800 font-medium">
+                  <div className="rounded-md border border-red-500/30 bg-red-500/20 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-red-300 font-medium">
                       High
                     </div>
-                    <div className="text-sm font-bold mt-1 text-red-900">{impacts.High}</div>
+                    <div className="text-sm font-bold mt-1 text-red-200">{impacts.High}</div>
                   </div>
-                  <div className="rounded-md border border-amber-200 bg-amber-100 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-800 font-medium">
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/20 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-300 font-medium">
                       Med
                     </div>
-                    <div className="text-sm font-bold mt-1 text-amber-900">{impacts.Medium}</div>
+                    <div className="text-sm font-bold mt-1 text-amber-200">{impacts.Medium}</div>
                   </div>
-                  <div className="rounded-md border border-green-200 bg-green-100 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-800 font-medium">
+                  <div className="rounded-md border border-green-500/30 bg-green-500/20 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-green-300 font-medium">
                       Low
                     </div>
-                    <div className="text-sm font-bold mt-1 text-green-900">{impacts.Low}</div>
+                    <div className="text-sm font-bold mt-1 text-green-200">{impacts.Low}</div>
                   </div>
                 </div>
               </div>
@@ -644,10 +644,10 @@ export default function BriefPage() {
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-md p-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Save Brief</h2>
+            <h2 className="text-lg font-semibold mb-4 text-[--color-foreground]">Save Brief</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-900">Brief Name</label>
+                <label className="block text-sm font-medium mb-1 text-[--color-foreground]">Brief Name</label>
                 <input
                   type="text"
                   value={briefName}
@@ -658,7 +658,7 @@ export default function BriefPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-900">Description (optional)</label>
+                <label className="block text-sm font-medium mb-1 text-[--color-foreground]">Description (optional)</label>
                 <textarea
                   value={briefDescription}
                   onChange={(e) => setBriefDescription(e.target.value)}
@@ -697,7 +697,7 @@ export default function BriefPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Brief History</h2>
+              <h2 className="text-lg font-semibold text-[--color-foreground]">Brief History</h2>
               <Button
                 variant="ghost"
                 onClick={() => setShowHistory(false)}
@@ -709,7 +709,7 @@ export default function BriefPage() {
             
             <div className="overflow-y-auto max-h-[60vh]">
               {(state?.savedBriefs || []).length === 0 ? (
-                <div className="text-center text-gray-600 py-8">
+                <div className="text-center text-[--color-muted] py-8">
                   No saved briefs yet
                 </div>
               ) : (
@@ -724,15 +724,15 @@ export default function BriefPage() {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-gray-900 mb-1">
+                            <h3 className="font-medium text-[--color-foreground] mb-1">
                               {brief.name}
                             </h3>
                             {brief.description && (
-                              <p className="text-sm text-gray-600 mb-2">
+                              <p className="text-sm text-[--color-muted] mb-2">
                                 {brief.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 text-xs text-gray-600">
+                            <div className="flex items-center gap-4 text-xs text-[--color-muted]">
                               <span>{brief.documentCount} documents</span>
                               <span>
                                 Created {new Date(brief.createdAt).toLocaleDateString()}
@@ -764,7 +764,7 @@ export default function BriefPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center text-gray-600 py-8">
+                    <div className="text-center text-[--color-muted] py-8">
                       No saved briefs available
                     </div>
                   )}

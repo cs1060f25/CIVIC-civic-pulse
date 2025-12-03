@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CivicPulse",
   description: "Find local trends before they break nationally.",
+  // icon.ico in app directory is automatically handled by Next.js without route generation
 };
 
 export default function RootLayout({

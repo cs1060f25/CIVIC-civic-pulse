@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fix-db-permissions
+  namespace: civicpulse-104c2bda
+spec:
+  template:
+    spec:
+      containers:
+      - name: fix-permissions
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          chmod 777 /app/backend/db
+          chmod 666 /app/backend/db/civicpulse.db
+          ls -la /app/backend/db/
+        volumeMounts:
+        - name: backend-db
+          mountPath: /app/backend/db
+      volumes:
+      - name: backend-db
+        persistentVolumeClaim:
+          claimName: backend-db
+      restartPolicy: OnFailure
+

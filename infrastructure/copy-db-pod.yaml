@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: copy-db-pod
+  namespace: civicpulse-104c2bda
+spec:
+  containers:
+  - name: copy-db
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: backend-db
+      mountPath: /app/backend/db
+  volumes:
+  - name: backend-db
+    persistentVolumeClaim:
+      claimName: backend-db
+  restartPolicy: Never
+

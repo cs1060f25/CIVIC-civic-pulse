@@ -1,0 +1,7 @@
+config:
+  gcp:project: civic-pulse-480006
+  gcp:region: us-central1
+  civicpulse:gkeClusterName: civicpulse-cluster
+  civicpulse:imageRegistry: us-central1-docker.pkg.dev/civic-pulse-480006/civicpulse
+  civicpulse:googleClientId: 1001250868106-0o3neevihvufp7nf2md52s96brp6s3s8.apps.googleusercontent.com
+  civicpulse:googleApiKeySecret: google-api-key

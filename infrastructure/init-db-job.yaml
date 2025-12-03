@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-db
+  namespace: civicpulse-104c2bda
+spec:
+  template:
+    spec:
+      containers:
+      - name: init-db
+        image: node:20-alpine
+        command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache sqlite
+          sqlite3 /app/backend/db/civicpulse.db <<EOF
+          CREATE TABLE IF NOT EXISTS users (
+            google_id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            name TEXT NOT NULL,
+            picture TEXT,
+            saved_state TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+          CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            source_id TEXT NOT NULL,
+            file_url TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            bytes_size INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash ON documents(content_hash);
+          CREATE INDEX IF NOT EXISTS idx_documents_file_url ON documents(file_url);
+          CREATE TABLE IF NOT EXISTS document_metadata (
+            document_id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            entity TEXT NOT NULL,
+            jurisdiction TEXT NOT NULL,
+            counties TEXT NOT NULL DEFAULT '[]',
+            meeting_date TEXT,
+            doc_types TEXT NOT NULL DEFAULT '[]',
+            topics TEXT NOT NULL DEFAULT '[]',
+            impact TEXT NOT NULL DEFAULT 'Low',
+            stage TEXT,
+            keyword_hits TEXT DEFAULT '{}',
+            extracted_text TEXT DEFAULT '[]',
+            pdf_preview TEXT DEFAULT '[]',
+            summary TEXT,
+            full_text TEXT,
+            attachments TEXT DEFAULT '[]',
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          );
+          CREATE INDEX IF NOT EXISTS idx_metadata_meeting_date ON document_metadata(meeting_date);
+          CREATE INDEX IF NOT EXISTS idx_metadata_impact ON document_metadata(impact);
+          CREATE INDEX IF NOT EXISTS idx_metadata_entity ON document_metadata(entity);
+          CREATE INDEX IF NOT EXISTS idx_metadata_jurisdiction ON document_metadata(jurisdiction);
+          EOF
+        volumeMounts:
+        - name: backend-db
+          mountPath: /app/backend/db
+      volumes:
+      - name: backend-db
+        persistentVolumeClaim:
+          claimName: backend-db
+      restartPolicy: OnFailure
+

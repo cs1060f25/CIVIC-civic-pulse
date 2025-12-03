@@ -1,4 +1,4 @@
-export type ImpactLevel = "Low" | "Medium" | "High";
+export type ImpactLevel = "Low" | "Medium" | "High" | null;
 
 export type DocumentType = "Agenda" | "Minutes" | "Staff Memo" | "Ordinance" | "Other";
 
@@ -37,6 +37,8 @@ export interface FeedItem {
   hits: KeywordHits;
   extractedText?: string[]; // mock paragraphs of extracted text
   pdfPreview?: string[]; // mock "pages" textual preview
+  summary?: string; // 1-3 sentence summary of the document
+  fullText?: string; // Full document text content
   attachments: Attachment[];
   
   updatedAt: string; // ISO 8601
@@ -67,6 +69,7 @@ export interface SearchUiState {
   meetingDateFrom: string | null; // ISO date (yyyy-mm-dd) or null
   meetingDateTo: string | null;
   selectedIds: string[];
+  page: number;
 }
 
 export interface AppState {

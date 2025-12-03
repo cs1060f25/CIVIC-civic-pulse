@@ -15,6 +15,7 @@ export const DEFAULT_APP_STATE: AppState = {
     meetingDateFrom: null,
     meetingDateTo: null,
     selectedIds: [],
+    page: 0,
   },
 };
 
@@ -39,6 +40,7 @@ export function normalizeAppState(state?: Partial<AppState> | null): AppState {
       meetingDateFrom: state.searchUi?.meetingDateFrom ?? null,
       meetingDateTo: state.searchUi?.meetingDateTo ?? null,
       selectedIds: Array.isArray(state.searchUi?.selectedIds) ? state.searchUi!.selectedIds : [],
+      page: typeof state.searchUi?.page === "number" ? state.searchUi.page : 0,
     },
   };
 }

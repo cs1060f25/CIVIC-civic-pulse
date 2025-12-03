@@ -2,8 +2,8 @@ services:
   # Frontend Next.js application
   frontend:
     build:
-      context: ./src
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/Dockerfile
       args:
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     ports:
@@ -14,7 +14,8 @@ services:
       - CIVICPULSE_DB_PATH=/app/backend/db/civicpulse.db
     volumes:
       # Mount backend DB directory for database access (canonical civicpulse.db with documents)
-      - ../backend/db:/app/backend/db:ro
+      # Note: Read-write access needed for user authentication (users table)
+      - ../backend/db:/app/backend/db
     depends_on:
       - ingestion
       - processing

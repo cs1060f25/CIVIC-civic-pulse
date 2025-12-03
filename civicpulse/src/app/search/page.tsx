@@ -19,6 +19,9 @@ export default function SearchPage() {
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
+  const page = state.searchUi.page;
   const {
     query,
     selectedDocTypes,
@@ -63,7 +66,8 @@ export default function SearchPage() {
         if (counties.length > 0) params.append("counties", counties.join(","));
         if (meetingDateFrom) params.append("meetingDateFrom", meetingDateFrom);
         if (meetingDateTo) params.append("meetingDateTo", meetingDateTo);
-        params.append("limit", "100");
+        params.append("limit", pageSize.toString());
+        params.append("offset", (page * pageSize).toString());
         
         const response = await fetch(`/api/documents?${params.toString()}`);
         
@@ -73,6 +77,7 @@ export default function SearchPage() {
         
         const data = await response.json();
         setDocuments(data.documents || []);
+        setTotal(data.pagination?.total || 0);
       } catch (err) {
         console.error("Error fetching documents:", err);
         setError("Failed to load documents from database");
@@ -82,23 +87,30 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated]);
+  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated, page]);
+  
+  // Reset to page 0 when filters change
+  useEffect(() => {
+    if (state.searchUi.page !== 0) {
+      setSearchUi((prev) => ({ ...prev, page: 0 }));
+    }
+  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo]);
 
   const results = documents;
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-[60vh] flex items-center justify-center px-4">
+      <main className="min-h-[60vh] flex items-center justify-center px-4 bg-white">
         <div className="max-w-md text-center space-y-4">
-          <h1 className="text-2xl font-semibold">Sign in to search CivicPulse</h1>
-          <p className="text-[--color-muted]">
-            Use the Sign in button in the header to authenticate with Google. Search and brief tools unlock after authentication.
+          <h1 className="text-2xl font-semibold text-gray-900">Sign in to search CivicPulse</h1>
+          <p className="text-gray-600">
+            Please sign in to access the search functionality.
           </p>
           <Link
             href="/login"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-[--color-brand-600] text-white font-semibold"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700"
           >
-            Go to login
+            Sign In
           </Link>
         </div>
       </main>
@@ -106,9 +118,9 @@ export default function SearchPage() {
   }
 
   return (
-    <main className="w-full py-8">
-      <div className="px-6 sm:px-8 lg:px-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+    <main className="w-full py-8 bg-white">
+      <div className="px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Search</h1>
         <div className="mt-6 grid lg:grid-cols-4 gap-6">
           <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-8 lg:h-fit">
           {/* Button shown in sidebar on desktop only */}
@@ -158,7 +170,7 @@ export default function SearchPage() {
                         selectedDocTypes: toggle(prev.selectedDocTypes, d),
                       }))
                     }
-                    className={`chip ${active ? "ring-2 ring-[--ring-color] bg-[color-mix(in_oklab,var(--brand-500)_20%,transparent)] border-[color-mix(in_oklab,var(--brand-500)_40%,transparent)] text-[--color-brand-100]" : ""}`}
+                    className={`chip ${active ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300 text-blue-900 font-medium" : "text-gray-900"}`}
                   >
                     {d}
                   </button>
@@ -185,7 +197,7 @@ export default function SearchPage() {
             <label className="block text-sm font-medium">Date range</label>
             <div className="mt-2 space-y-2">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Start date</label>
+                <label className="block text-xs text-gray-900 mb-1">Start date</label>
                 <DatePicker
                   selected={startDate}
                   onChange={(date: Date | null) =>
@@ -202,7 +214,7 @@ export default function SearchPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">End date</label>
+                <label className="block text-xs text-gray-900 mb-1">End date</label>
                 <DatePicker
                   selected={endDate}
                   onChange={(date: Date | null) =>
@@ -239,68 +251,98 @@ export default function SearchPage() {
           </Button>
           
           {loading && (
-            <Card className="p-6 text-sm muted text-center">Loading documents...</Card>
+            <Card className="p-6 text-sm text-gray-600 text-center bg-gray-50">Loading documents...</Card>
           )}
           {error && (
-            <Card className="p-6 text-sm text-red-400">Error: {error}</Card>
+            <Card className="p-6 text-sm text-red-600 bg-red-50">Error: {error}</Card>
           )}
           {!loading && !error && results.length === 0 && (
-            <Card className="p-6 text-sm muted">No results match your filters.</Card>
+            <Card className="p-6 text-sm text-gray-600 bg-gray-50">No results match your filters.</Card>
           )}
           
           {/* Desktop Table View - hidden on mobile */}
           {!loading && !error && results.length > 0 && (
             <div className="hidden lg:block rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-hidden">
               <div className="grid grid-cols-12 bg-white/10 text-[13px] font-medium border-b border-white/10">
-                <div className="col-span-1 px-4 py-3">Select</div>
-                <div className="col-span-4 px-4 py-3">Title</div>
-                <div className="col-span-3 px-4 py-3">Entity / County</div>
-                <div className="col-span-2 px-4 py-3">Docs</div>
-                <div className="col-span-1 px-4 py-3">Date</div>
-                <div className="col-span-1 px-4 py-3">Impact</div>
+                <div className="col-span-1 px-4 py-3 flex items-center">Select</div>
+                <div className="col-span-4 px-4 py-3 flex items-center">Title</div>
+                <div className="col-span-3 px-4 py-3 flex items-center">Entity / County</div>
+                <div className="col-span-2 px-4 py-3 flex items-center">Docs</div>
+                <div className="col-span-1 px-4 py-3 flex items-center">Date</div>
+                <div className="col-span-1 px-4 py-3 flex items-center">Impact</div>
               </div>
               {results.map((item, idx) => (
-                <div key={item.id} className={`grid grid-cols-12 border-t border-white/10 text-sm leading-7 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
-                  <div className="col-span-1 px-4 py-4">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 align-middle accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                      checked={selectedIds.includes(item.id)}
-                      onChange={() => toggleSelected(item.id)}
-                      disabled={state.briefItemIds.includes(item.id)}
-                      title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
-                    />
-                  </div>
-                  <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100]">{item.title}</Link>
-                      {state.briefItemIds.includes(item.id) && (
-                        <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
-                      )}
+                <div key={item.id} className={`border-t border-white/10 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
+                  <div className="grid grid-cols-12 text-sm">
+                    <div className="col-span-1 px-4 py-4 flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => toggleSelected(item.id)}
+                        disabled={state.briefItemIds.includes(item.id)}
+                        title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
+                      />
                     </div>
-                      <div className="text-xs muted mt-1">
-                        Hits:{" "}
-                        {Object.entries(item.hits || {})
-                          .map(([k, v]) => formatHitLabel(k, v))
-                          .join(", ")}
+                    <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={`/item/${item.id}`} className="font-medium hover:underline text-gray-900">{item.title}</Link>
+                        {state.briefItemIds.includes(item.id) && (
+                          <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
+                        )}
                       </div>
+                    </div>
+                    <div className="col-span-3 px-4 py-4 overflow-hidden break-words flex flex-col justify-center">
+                      <div className="font-medium text-xs">{item.entity}</div>
+                      <div className="text-xs text-gray-600">{item.jurisdiction}</div>
+                    </div>
+                    <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis flex items-center">{item.docTypes.join(", ")}</div>
+                    <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap flex items-center">
+                      {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                    </div>
+                    <div className="col-span-1 px-4 py-4 flex items-center">
+                      {item.impact ? <ImpactBadge level={item.impact} /> : <span className="text-xs text-gray-500">—</span>}
+                    </div>
                   </div>
-                  <div className="col-span-3 px-4 py-4 overflow-hidden break-words">
-                    <div className="font-medium text-xs">{item.entity}</div>
-                    <div className="text-xs muted">{item.jurisdiction}</div>
-                  </div>
-                  <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis">{item.docTypes.join(", ")}</div>
-                  <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap">
-                    {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                  </div>
-                  <div className="col-span-1 px-4 py-4">
-                    <ImpactBadge level={item.impact} />
-                  </div>
+                  {item.summary && (
+                    <div className="col-span-12 px-4 pb-4 pt-0">
+                      <div className="text-sm text-gray-600">
+                        {item.summary}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
           
+          {/* Pagination Controls */}
+          {!loading && !error && results.length > 0 && (
+            <div className="flex items-center justify-between mt-6 mb-4">
+              <div className="text-sm text-gray-600">
+                Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, total)} of {total} documents
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setSearchUi((prev) => ({ ...prev, page: Math.max(0, prev.page - 1) }))}
+                  disabled={page === 0}
+                  className="text-gray-900"
+                >
+                  ← Previous
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setSearchUi((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={(page + 1) * pageSize >= total}
+                  className="text-gray-900"
+                >
+                  Next →
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Mobile Card View - shown only on mobile */}
           {!loading && !error && results.length > 0 && (
             <div className="lg:hidden space-y-4">
@@ -316,31 +358,57 @@ export default function SearchPage() {
                       title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
                     />
                     <div className="flex-1 min-w-0">
-                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-brand-100] block">
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-gray-900 block">
                         {item.title}
                       </Link>
-                      <div className="text-xs muted mt-1">
+                      <div className="text-xs text-gray-600 mt-1">
                         {item.entity} — {item.jurisdiction}
                       </div>
+                      {item.summary && (
+                        <div className="text-sm text-gray-600 mt-2 line-clamp-2">
+                          {item.summary}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        <ImpactBadge level={item.impact} />
+                        {item.impact && <ImpactBadge level={item.impact} />}
                         {state.briefItemIds.includes(item.id) && (
                           <Badge color="brand">In Brief</Badge>
                         )}
                       </div>
-                      <div className="text-xs muted mt-2">
+                      <div className="text-xs text-gray-500 mt-2">
                         {item.docTypes.join(", ")} • {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                      </div>
-                      <div className="text-xs muted mt-1">
-                        Hits:{" "}
-                        {Object.entries(item.hits || {})
-                          .map(([k, v]) => formatHitLabel(k, v))
-                          .join(", ")}
                       </div>
                     </div>
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+          
+          {/* Pagination Controls for Mobile */}
+          {!loading && !error && results.length > 0 && (
+            <div className="lg:hidden flex items-center justify-between mt-6 mb-4">
+              <div className="text-sm text-gray-600">
+                Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, total)} of {total}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setSearchUi((prev) => ({ ...prev, page: Math.max(0, prev.page - 1) }))}
+                  disabled={page === 0}
+                  className="text-gray-900"
+                >
+                  ← Prev
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setSearchUi((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  disabled={(page + 1) * pageSize >= total}
+                  className="text-gray-900"
+                >
+                  Next →
+                </Button>
+              </div>
             </div>
           )}
         </section>
@@ -350,7 +418,8 @@ export default function SearchPage() {
   );
 }
 
-function ImpactBadge({ level }: { level: "Low" | "Medium" | "High" }) {
+function ImpactBadge({ level }: { level: "Low" | "Medium" | "High" | null }) {
+  if (!level) return null;
   if (level === "High") return <Badge color="danger">High</Badge>;
   if (level === "Medium") return <Badge color="warning">Medium</Badge>;
   return <Badge color="success">Low</Badge>;

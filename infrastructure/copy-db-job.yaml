@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-db
+  namespace: civicpulse-104c2bda
+spec:
+  template:
+    spec:
+      containers:
+      - name: copy-db
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for database file to be uploaded..."
+          # The database will be copied via kubectl cp
+        volumeMounts:
+        - name: backend-db
+          mountPath: /app/backend/db
+      volumes:
+      - name: backend-db
+        persistentVolumeClaim:
+          claimName: backend-db
+      restartPolicy: Never
+

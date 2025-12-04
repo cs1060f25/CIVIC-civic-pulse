@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppState } from "@app/lib/state";
 import { SavedBrief } from "@app/lib/types";
 import type { FeedItem } from "@app/lib/types";
-import { Button, Card } from "@app/components/ui";
+import { Button, Card, Badge } from "@app/components/ui";
 import Link from "next/link";
 import { useAuth } from "@app/auth/AuthContext";
 
@@ -467,17 +467,7 @@ export default function BriefPage() {
                         <div className="flex items-center gap-2 mt-3 flex-wrap">
                           {/* Impact Badge */}
                           {item.impact && (
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                item.impact === "High"
-                                  ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                                  : item.impact === "Medium"
-                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                  : "bg-green-500/20 text-green-300 border border-green-500/30"
-                              }`}
-                            >
-                              {item.impact} Impact
-                            </span>
+                            <ImpactBadge level={item.impact} />
                           )}
                           
                           {/* Doc Types */}
@@ -584,23 +574,23 @@ export default function BriefPage() {
               <div className="mt-2">
                 <div className="font-medium mb-2 text-white/90">Impact Level</div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-md border border-red-500/30 bg-red-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-200 font-medium">
+                  <div className="rounded-md border border-red-200 bg-red-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-red-800 font-medium">
                       High
                     </div>
-                    <div className="text-sm font-bold mt-1 text-red-100">{impacts.High}</div>
+                    <div className="text-sm font-bold mt-1 text-red-800">{impacts.High}</div>
                   </div>
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-200 font-medium">
+                  <div className="rounded-md border border-amber-200 bg-amber-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-800 font-medium">
                       Medium
                     </div>
-                    <div className="text-sm font-bold mt-1 text-amber-100">{impacts.Medium}</div>
+                    <div className="text-sm font-bold mt-1 text-amber-800">{impacts.Medium}</div>
                   </div>
-                  <div className="rounded-md border border-green-500/30 bg-green-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-200 font-medium">
+                  <div className="rounded-md border border-green-200 bg-green-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-green-800 font-medium">
                       Low
                     </div>
-                    <div className="text-sm font-bold mt-1 text-green-100">{impacts.Low}</div>
+                    <div className="text-sm font-bold mt-1 text-green-800">{impacts.Low}</div>
                   </div>
                 </div>
               </div>
@@ -784,4 +774,11 @@ export default function BriefPage() {
     </div>
     </main>
   );
+}
+
+function ImpactBadge({ level }: { level: "Low" | "Medium" | "High" | null }) {
+  if (!level) return null;
+  if (level === "High") return <Badge color="danger">High</Badge>;
+  if (level === "Medium") return <Badge color="warning">Medium</Badge>;
+  return <Badge color="success">Low</Badge>;
 }

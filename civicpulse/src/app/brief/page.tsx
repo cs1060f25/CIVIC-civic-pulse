@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppState } from "@app/lib/state";
 import { SavedBrief } from "@app/lib/types";
 import type { FeedItem } from "@app/lib/types";
-import { Button, Card } from "@app/components/ui";
+import { Button, Card, Badge } from "@app/components/ui";
 import Link from "next/link";
 import { useAuth } from "@app/auth/AuthContext";
 
@@ -58,7 +58,7 @@ const MOCK_DOCUMENTS: FeedItem[] = [
 
 export default function BriefPage() {
   const { state, removeFromBrief, saveBrief, loadBrief, deleteBrief, clearBrief } = useAppState();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,8 +91,15 @@ export default function BriefPage() {
           state.briefItemIds.includes(doc.id)
         );
 
-        // Try to fetch real documents from API
-        const response = await fetch(`/api/documents?limit=100`);
+        // Build API URL with googleId if user is authenticated
+        const params = new URLSearchParams();
+        params.append("limit", "100");
+        if (user?.googleId) {
+          params.append("googleId", user.googleId);
+        }
+
+        // Try to fetch real documents from API with user-specific metadata
+        const response = await fetch(`/api/documents?${params.toString()}`);
         
         if (!response.ok) {
           // If API fails, use only mock documents
@@ -122,7 +129,7 @@ export default function BriefPage() {
     }
 
     fetchBriefDocuments();
-  }, [state, isAuthenticated]);
+  }, [state, isAuthenticated, user?.googleId]);
 
   // Calculate metadata
   const itemCount = documents.length;
@@ -290,7 +297,7 @@ export default function BriefPage() {
             </div>
             ` : ''}
             <div class="metadata-row">
-              <div class="metadata-label">Date Range:</div>
+              <div class="metadata-label">Meeting Date:</div>
               <div class="metadata-value">${dateRange}</div>
             </div>
             ${docTypes.length > 0 ? `
@@ -307,7 +314,7 @@ export default function BriefPage() {
             ` : ''}
             
             <div style="margin-top: 16px;">
-              <div class="metadata-label" style="margin-bottom: 8px;">Impact Distribution:</div>
+              <div class="metadata-label" style="margin-bottom: 8px;">Impact Level:</div>
               <div class="impact-grid">
                 <div class="impact-box impact-high">
                   <div class="impact-label">High</div>
@@ -460,17 +467,7 @@ export default function BriefPage() {
                         <div className="flex items-center gap-2 mt-3 flex-wrap">
                           {/* Impact Badge */}
                           {item.impact && (
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                item.impact === "High"
-                                  ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                                  : item.impact === "Medium"
-                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                  : "bg-green-500/20 text-green-300 border border-green-500/30"
-                              }`}
-                            >
-                              {item.impact} Impact
-                            </span>
+                            <ImpactBadge level={item.impact} />
                           )}
                           
                           {/* Doc Types */}
@@ -533,31 +530,31 @@ export default function BriefPage() {
             <div className="font-medium mb-4 text-[--color-foreground]">Brief Metadata</div>
             <div className="grid gap-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[--color-muted]">Items</span>
+                <span className="font-medium text-white/90">Items</span>
                 <span className="font-medium text-[--color-foreground]">{itemCount}</span>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-1">Counties</div>
+                <div className="font-medium mb-1 text-white/90">Counties</div>
                 <div className="text-xs text-[--color-foreground]">
                   {allCounties.length ? allCounties.join(", ") : "—"}
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
-                <span className="text-[--color-muted]">Date range</span>
-                <span className="text-xs text-[--color-foreground]">{dateRange}</span>
+              <div>
+                <div className="font-medium mb-1 text-white/90">Meeting Date</div>
+                <div className="text-xs text-[--color-foreground]">{dateRange}</div>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-1">Doc types</div>
+                <div className="font-medium mb-1 text-white/90">Document Types</div>
                 <div className="text-xs text-[--color-foreground]">
                   {docTypes.length ? docTypes.join(", ") : "—"}
                 </div>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-2">Topics</div>
+                <div className="font-medium mb-2 text-white/90">Topics</div>
                 <div className="flex flex-wrap gap-1">
                   {allTopics.length > 0 ? (
                     allTopics.map((topic) => (
@@ -569,31 +566,31 @@ export default function BriefPage() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-[--color-muted]">—</span>
+                    <span className="text-xs text-[--color-foreground] opacity-60">—</span>
                   )}
                 </div>
               </div>
               
               <div className="mt-2">
-                <div className="text-[--color-muted] mb-2">Impact Distribution</div>
+                <div className="font-medium mb-2 text-white/90">Impact Level</div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-md border border-red-500/30 bg-red-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-300 font-medium">
+                  <div className="rounded-md border border-red-200 bg-red-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-red-800 font-medium">
                       High
                     </div>
-                    <div className="text-sm font-bold mt-1 text-red-200">{impacts.High}</div>
+                    <div className="text-sm font-bold mt-1 text-red-800">{impacts.High}</div>
                   </div>
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-300 font-medium">
-                      Med
+                  <div className="rounded-md border border-amber-200 bg-amber-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-800 font-medium">
+                      Medium
                     </div>
-                    <div className="text-sm font-bold mt-1 text-amber-200">{impacts.Medium}</div>
+                    <div className="text-sm font-bold mt-1 text-amber-800">{impacts.Medium}</div>
                   </div>
-                  <div className="rounded-md border border-green-500/30 bg-green-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-300 font-medium">
+                  <div className="rounded-md border border-green-200 bg-green-100 p-2 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-green-800 font-medium">
                       Low
                     </div>
-                    <div className="text-sm font-bold mt-1 text-green-200">{impacts.Low}</div>
+                    <div className="text-sm font-bold mt-1 text-green-800">{impacts.Low}</div>
                   </div>
                 </div>
               </div>
@@ -777,4 +774,11 @@ export default function BriefPage() {
     </div>
     </main>
   );
+}
+
+function ImpactBadge({ level }: { level: "Low" | "Medium" | "High" | null }) {
+  if (!level) return null;
+  if (level === "High") return <Badge color="danger">High</Badge>;
+  if (level === "Medium") return <Badge color="warning">Medium</Badge>;
+  return <Badge color="success">Low</Badge>;
 }

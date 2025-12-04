@@ -59,6 +59,21 @@ spec:
           CREATE INDEX IF NOT EXISTS idx_metadata_impact ON document_metadata(impact);
           CREATE INDEX IF NOT EXISTS idx_metadata_entity ON document_metadata(entity);
           CREATE INDEX IF NOT EXISTS idx_metadata_jurisdiction ON document_metadata(jurisdiction);
+          CREATE TABLE IF NOT EXISTS user_document_metadata (
+            user_google_id TEXT NOT NULL,
+            document_id TEXT NOT NULL,
+            impact TEXT,
+            stage TEXT,
+            topics TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (user_google_id, document_id),
+            FOREIGN KEY (user_google_id) REFERENCES users(google_id) ON DELETE CASCADE,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          );
+          CREATE INDEX IF NOT EXISTS idx_user_metadata_user_id ON user_document_metadata(user_google_id);
+          CREATE INDEX IF NOT EXISTS idx_user_metadata_document_id ON user_document_metadata(document_id);
+          CREATE INDEX IF NOT EXISTS idx_user_metadata_impact ON user_document_metadata(impact);
           EOF
         volumeMounts:
         - name: backend-db

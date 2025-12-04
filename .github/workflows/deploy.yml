@@ -53,7 +53,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
           pulumi stack select dev || pulumi stack init dev
-          GOOGLE_CLIENT_ID=$(pulumi config get civicpulse:googleClientId --plaintext || echo "")
+          GOOGLE_CLIENT_ID=$(pulumi config get civicpulse:googleClientId 2>/dev/null || echo "")
           echo "client_id=$GOOGLE_CLIENT_ID" >> $GITHUB_OUTPUT
           if [ -z "$GOOGLE_CLIENT_ID" ]; then
             echo "Warning: Google Client ID not found in Pulumi config"

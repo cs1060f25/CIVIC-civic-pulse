@@ -20,7 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all config files
 COPY package.json package-lock.json* ./
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
-COPY next-env.d.ts ./
+# COPY next-env.d.ts ./ # This line is not needed
 
 # Create public directory (icon.ico is in src/app/, not public/)
 # We don't need to copy public/ since favicon is handled via icon.ico in app directory

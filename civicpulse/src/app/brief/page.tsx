@@ -533,31 +533,31 @@ export default function BriefPage() {
             <div className="font-medium mb-4 text-[--color-foreground]">Brief Metadata</div>
             <div className="grid gap-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[--color-muted]">Items</span>
+                <span className="text-[--color-foreground] font-medium opacity-80">Items</span>
                 <span className="font-medium text-[--color-foreground]">{itemCount}</span>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-1">Counties</div>
+                <div className="text-[--color-foreground] font-medium mb-1 opacity-80">Counties</div>
                 <div className="text-xs text-[--color-foreground]">
                   {allCounties.length ? allCounties.join(", ") : "—"}
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
-                <span className="text-[--color-muted]">Date range</span>
-                <span className="text-xs text-[--color-foreground]">{dateRange}</span>
+              <div>
+                <div className="text-[--color-foreground] font-medium mb-1 opacity-80">Meeting Date</div>
+                <div className="text-xs text-[--color-foreground]">{dateRange}</div>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-1">Doc types</div>
+                <div className="text-[--color-foreground] font-medium mb-1 opacity-80">Document Types</div>
                 <div className="text-xs text-[--color-foreground]">
                   {docTypes.length ? docTypes.join(", ") : "—"}
                 </div>
               </div>
               
               <div>
-                <div className="text-[--color-muted] mb-2">Topics</div>
+                <div className="text-[--color-foreground] font-medium mb-2 opacity-80">Topics</div>
                 <div className="flex flex-wrap gap-1">
                   {allTopics.length > 0 ? (
                     allTopics.map((topic) => (
@@ -569,31 +569,31 @@ export default function BriefPage() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-[--color-muted]">—</span>
+                    <span className="text-xs text-[--color-foreground] opacity-60">—</span>
                   )}
                 </div>
               </div>
               
               <div className="mt-2">
-                <div className="text-[--color-muted] mb-2">Impact Distribution</div>
+                <div className="text-[--color-foreground] font-medium mb-2 opacity-80">Impact Level</div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-md border border-red-500/30 bg-red-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-300 font-medium">
+                    <div className="text-[10px] uppercase tracking-wider text-red-200 font-medium">
                       High
                     </div>
-                    <div className="text-sm font-bold mt-1 text-red-200">{impacts.High}</div>
+                    <div className="text-sm font-bold mt-1 text-red-100">{impacts.High}</div>
                   </div>
                   <div className="rounded-md border border-amber-500/30 bg-amber-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-300 font-medium">
-                      Med
+                    <div className="text-[10px] uppercase tracking-wider text-amber-200 font-medium">
+                      Medium
                     </div>
-                    <div className="text-sm font-bold mt-1 text-amber-200">{impacts.Medium}</div>
+                    <div className="text-sm font-bold mt-1 text-amber-100">{impacts.Medium}</div>
                   </div>
                   <div className="rounded-md border border-green-500/30 bg-green-500/20 p-2 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-300 font-medium">
+                    <div className="text-[10px] uppercase tracking-wider text-green-200 font-medium">
                       Low
                     </div>
-                    <div className="text-sm font-bold mt-1 text-green-200">{impacts.Low}</div>
+                    <div className="text-sm font-bold mt-1 text-green-100">{impacts.Low}</div>
                   </div>
                 </div>
               </div>

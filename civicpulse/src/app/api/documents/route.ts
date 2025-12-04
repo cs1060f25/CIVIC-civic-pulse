@@ -131,13 +131,13 @@ export async function GET(request: NextRequest) {
       params.push(googleId);
     }
     
-    // Text search
+    // Text search - simple substring match across key fields
     if (query) {
       sql += ` AND (
         m.title LIKE ? OR 
         m.entity LIKE ? OR 
-        m.topics LIKE ? OR
-        m.extracted_text LIKE ?
+        m.summary LIKE ? OR
+        m.full_text LIKE ?
       )`;
       const searchTerm = `%${query}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);

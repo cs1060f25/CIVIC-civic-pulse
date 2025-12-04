@@ -9,6 +9,7 @@ on:
 env:
   GCP_PROJECT: civic-pulse-480006
   GCP_REGION: us-central1
+  CLUSTER_ZONE: us-central1-a
   IMAGE_REGISTRY: us-central1-docker.pkg.dev
   IMAGE_REPO: civicpulse
   CLUSTER_NAME: civicpulse-cluster
@@ -128,7 +129,7 @@ jobs:
         run: |
           # Configure kubectl to use the GKE cluster (this sets up the auth plugin)
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --region ${{ env.GCP_REGION }} \
+            --zone ${{ env.CLUSTER_ZONE }} \
             --project ${{ env.GCP_PROJECT }}
           # Verify kubectl can connect
           kubectl cluster-info || echo "Warning: kubectl cluster-info failed, but continuing..."
@@ -173,7 +174,7 @@ jobs:
       - name: Configure kubectl
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
-            --region ${{ env.GCP_REGION }} \
+            --zone ${{ env.CLUSTER_ZONE }} \
             --project ${{ env.GCP_PROJECT }}
 
       - name: Restart deployments

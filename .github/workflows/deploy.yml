@@ -9,7 +9,8 @@ on:
 env:
   GCP_PROJECT: civic-pulse-480006
   GCP_REGION: us-central1
-  IMAGE_REGISTRY: gcr.io
+  IMAGE_REGISTRY: us-central1-docker.pkg.dev
+  IMAGE_REPO: civicpulse
   CLUSTER_NAME: civicpulse-cluster
 
 jobs:
@@ -43,28 +44,23 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
-
-      - name: Enable Container Registry API and ensure GCR bucket exists
+      - name: Configure Docker for Artifact Registry
         run: |
-          # Enable Container Registry API (required for GCR)
-          echo "Enabling Container Registry API..."
-          gcloud services enable containerregistry.googleapis.com --project=${{ env.GCP_PROJECT }} || true
-          
-          # GCR uses a Cloud Storage bucket named artifacts.PROJECT_ID.appspot.com
-          # Try to create it if it doesn't exist (requires storage.admin role)
-          BUCKET_NAME="artifacts.${{ env.GCP_PROJECT }}.appspot.com"
-          echo "Checking GCR bucket: $BUCKET_NAME"
-          if ! gsutil ls -b gs://$BUCKET_NAME &>/dev/null; then
-            echo "Creating GCR bucket: $BUCKET_NAME"
-            gsutil mb -p ${{ env.GCP_PROJECT }} -l ${{ env.GCP_REGION }} gs://$BUCKET_NAME || {
-              echo "Warning: Could not create bucket. It may be created automatically on first push."
-              echo "If push fails, ensure service account has 'Storage Admin' role (roles/storage.admin)"
-            }
-          else
-            echo "GCR bucket exists: $BUCKET_NAME"
-          fi
+          # Configure Docker to use gcloud as credential helper for Artifact Registry
+          gcloud auth configure-docker ${{ env.IMAGE_REGISTRY }} --quiet
+
+      - name: Verify Artifact Registry repository exists
+        run: |
+          # Verify the Artifact Registry repository exists
+          echo "Verifying Artifact Registry repository: ${{ env.IMAGE_REPO }}"
+          gcloud artifacts repositories describe ${{ env.IMAGE_REPO }} \
+            --location=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT }} || {
+            echo "Error: Artifact Registry repository '${{ env.IMAGE_REPO }}' not found in ${{ env.GCP_REGION }}"
+            echo "Please create it manually or check the repository name"
+            exit 1
+          }
+          echo "Artifact Registry repository verified: ${{ env.IMAGE_REPO }}"
 
       - name: Get Google Client ID from Pulumi config
         id: get-config
@@ -85,41 +81,41 @@ jobs:
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID="${{ steps.get-config.outputs.client_id }}" \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:${{ github.sha }} \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:latest \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-frontend:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-frontend:latest \
             -f src/Dockerfile .
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:${{ github.sha }}
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-frontend:latest
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-frontend:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-frontend:latest
 
       - name: Build and push Ingestion image
         working-directory: civicpulse/src/ingestion
         run: |
           docker build \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:${{ github.sha }} \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:latest \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-ingestion:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-ingestion:latest \
             -f Dockerfile .
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:${{ github.sha }}
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-ingestion:latest
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-ingestion:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-ingestion:latest
 
       - name: Build and push Processing image
         working-directory: civicpulse/src/processing
         run: |
           docker build \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:${{ github.sha }} \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:latest \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-processing:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-processing:latest \
             -f Dockerfile .
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:${{ github.sha }}
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-processing:latest
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-processing:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-processing:latest
 
       - name: Build and push LM Parser image
         working-directory: civicpulse/src/lm_parser
         run: |
           docker build \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:${{ github.sha }} \
-            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:latest \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-lm-parser:${{ github.sha }} \
+            -t ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-lm-parser:latest \
             -f Dockerfile .
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:${{ github.sha }}
-          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/civicpulse-lm-parser:latest
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-lm-parser:${{ github.sha }}
+          docker push ${{ env.IMAGE_REGISTRY }}/${{ env.GCP_PROJECT }}/${{ env.IMAGE_REPO }}/civicpulse-lm-parser:latest
 
       - name: Install Pulumi dependencies
         working-directory: infrastructure

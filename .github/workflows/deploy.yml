@@ -142,10 +142,10 @@ jobs:
           pulumi login
           pulumi stack select dev || pulumi stack init dev
           # Ensure config is set
-          pulumi config set gcp:project ${{ env.GCP_PROJECT }} --plaintext
-          pulumi config set gcp:region ${{ env.GCP_REGION }} --plaintext
-          pulumi config set civicpulse:gkeClusterName ${{ env.CLUSTER_NAME }} --plaintext
-          pulumi config set civicpulse:googleClientId "${{ steps.get-config.outputs.client_id }}" --plaintext
+          pulumi config set gcp:project ${{ env.GCP_PROJECT }}
+          pulumi config set gcp:region ${{ env.GCP_REGION }}
+          pulumi config set civicpulse:gkeClusterName ${{ env.CLUSTER_NAME }}
+          pulumi config set civicpulse:googleClientId "${{ steps.get-config.outputs.client_id }}"
 
       - name: Preview Pulumi changes
         working-directory: infrastructure

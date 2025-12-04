@@ -62,52 +62,71 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Ensure user_document_metadata table exists (create if it doesn't for backward compatibility)
+    // Check if user_document_metadata table exists (for backward compatibility)
+    let userMetadataTableExists = false;
     if (googleId) {
       try {
-        db.exec(`
-          CREATE TABLE IF NOT EXISTS user_document_metadata (
-            user_google_id TEXT NOT NULL,
-            document_id TEXT NOT NULL,
-            impact TEXT,
-            stage TEXT,
-            topics TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            PRIMARY KEY (user_google_id, document_id),
-            FOREIGN KEY (user_google_id) REFERENCES users(google_id) ON DELETE CASCADE,
-            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
-          );
-          CREATE INDEX IF NOT EXISTS idx_user_metadata_user_id ON user_document_metadata(user_google_id);
-          CREATE INDEX IF NOT EXISTS idx_user_metadata_document_id ON user_document_metadata(document_id);
-          CREATE INDEX IF NOT EXISTS idx_user_metadata_impact ON user_document_metadata(impact);
-        `);
+        const tableCheck = db.prepare(`
+          SELECT name FROM sqlite_master 
+          WHERE type='table' AND name='user_document_metadata'
+        `).get() as { name: string } | undefined;
+        userMetadataTableExists = !!tableCheck;
+        
+        if (!userMetadataTableExists) {
+          // Try to create table (without foreign keys for compatibility)
+          try {
+            db.exec(`
+              CREATE TABLE user_document_metadata (
+                user_google_id TEXT NOT NULL,
+                document_id TEXT NOT NULL,
+                impact TEXT,
+                stage TEXT,
+                topics TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (user_google_id, document_id)
+              )
+            `);
+            userMetadataTableExists = true;
+            
+            // Create indexes
+            db.exec(`
+              CREATE INDEX IF NOT EXISTS idx_user_metadata_user_id ON user_document_metadata(user_google_id);
+              CREATE INDEX IF NOT EXISTS idx_user_metadata_document_id ON user_document_metadata(document_id);
+              CREATE INDEX IF NOT EXISTS idx_user_metadata_impact ON user_document_metadata(impact);
+            `);
+          } catch (createErr) {
+            console.error("Failed to create user_document_metadata table:", createErr);
+            userMetadataTableExists = false;
+          }
+        }
       } catch (err) {
-        console.error("Error ensuring user_document_metadata table exists:", err);
-        // Continue anyway - the query will fail gracefully if table doesn't exist
+        console.error("Error checking user_document_metadata table:", err);
+        userMetadataTableExists = false;
       }
     }
     
-    // Build query with user-specific metadata join if googleId is provided
+    // Build query with user-specific metadata join if googleId is provided AND table exists
+    const useUserMetadata = googleId && userMetadataTableExists;
     let sql = `
       SELECT 
         d.id, d.source_id, d.file_url, d.content_hash, d.bytes_size, d.created_at,
         m.title, m.entity, m.jurisdiction, m.counties, m.meeting_date, m.doc_types,
-        ${googleId ? "COALESCE(um.impact, m.impact)" : "m.impact"} as impact,
-        ${googleId ? "COALESCE(um.stage, m.stage)" : "m.stage"} as stage,
-        ${googleId ? "COALESCE(um.topics, m.topics)" : "m.topics"} as topics,
+        ${useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact"} as impact,
+        ${useUserMetadata ? "COALESCE(um.stage, m.stage)" : "m.stage"} as stage,
+        ${useUserMetadata ? "COALESCE(um.topics, m.topics)" : "m.topics"} as topics,
         m.keyword_hits, m.extracted_text, m.pdf_preview,
         m.summary, m.full_text, m.attachments, m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
-      ${googleId ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
+      ${useUserMetadata ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
       WHERE 1=1
     `;
     
     const params: (string | number)[] = [];
     
-    // Add googleId to params if provided (must be first for the LEFT JOIN)
-    if (googleId) {
+    // Add googleId to params if using user metadata (must be first for the LEFT JOIN)
+    if (useUserMetadata) {
       params.push(googleId);
     }
     
@@ -137,10 +156,10 @@ export async function GET(request: NextRequest) {
       counties.forEach(c => params.push(`%"${c}"%`));
     }
     
-    // Impact filter (use COALESCE to check both user and global metadata if googleId provided)
+    // Impact filter (use COALESCE to check both user and global metadata if using user metadata)
     if (impact.length > 0) {
       const impactPlaceholders = impact.map(() => "?").join(",");
-      if (googleId) {
+      if (useUserMetadata) {
         sql += ` AND COALESCE(um.impact, m.impact) IN (${impactPlaceholders})`;
       } else {
         sql += ` AND m.impact IN (${impactPlaceholders})`;
@@ -148,10 +167,10 @@ export async function GET(request: NextRequest) {
       params.push(...impact);
     }
     
-    // Stage filter (use COALESCE to check both user and global metadata if googleId provided)
+    // Stage filter (use COALESCE to check both user and global metadata if using user metadata)
     if (stage.length > 0) {
       const stagePlaceholders = stage.map(() => "?").join(",");
-      if (googleId) {
+      if (useUserMetadata) {
         sql += ` AND COALESCE(um.stage, m.stage) IN (${stagePlaceholders})`;
       } else {
         sql += ` AND m.stage IN (${stagePlaceholders})`;
@@ -159,9 +178,9 @@ export async function GET(request: NextRequest) {
       params.push(...stage);
     }
     
-    // Topics filter (use COALESCE to check both user and global metadata if googleId provided)
+    // Topics filter (use COALESCE to check both user and global metadata if using user metadata)
     if (topics.length > 0) {
-      if (googleId) {
+      if (useUserMetadata) {
         const topicConditions = topics.map(() => "COALESCE(um.topics, m.topics) LIKE ?").join(" OR ");
         sql += ` AND (${topicConditions})`;
       } else {
@@ -190,15 +209,22 @@ export async function GET(request: NextRequest) {
     // Count total (before pagination)
     // Build count query before adding ORDER BY, LIMIT, and OFFSET
     const countSql = sql.replace(/ORDER BY[\s\S]*$/, "").replace(/SELECT[\s\S]*?FROM/, "SELECT COUNT(*) as total FROM");
-    // Count query uses all params except LIMIT and OFFSET (last 2 params)
-    const countParams = params.slice(0, Math.max(0, params.length - 2));
-    const countResult = db.prepare(countSql).get(...countParams) as { total: number };
-    const total = countResult?.total || 0;
+    // Count query uses all current params (LIMIT and OFFSET haven't been added yet)
+    let total = 0;
+    try {
+      const countResult = db.prepare(countSql).get(...params) as { total: number } | undefined;
+      total = countResult?.total || 0;
+    } catch (countErr) {
+      console.error("Error executing count query:", countErr);
+      console.error("Count SQL:", countSql);
+      console.error("Count params:", params);
+      // Continue with total = 0 if count fails
+    }
     
-    // Sorting (use COALESCE for impact to sort by user-specific value if available)
+    // Sorting (use COALESCE for impact to sort by user-specific value if using user metadata)
     const sortColumn = sortBy === "meetingDate" ? "m.meeting_date" :
                        sortBy === "createdAt" ? "d.created_at" :
-                       sortBy === "impact" ? (googleId ? "COALESCE(um.impact, m.impact)" : "m.impact") :
+                       sortBy === "impact" ? (useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact") :
                        sortBy === "title" ? "m.title" : "m.meeting_date";
     const order = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
     sql += ` ORDER BY ${sortColumn} ${order}`;
@@ -208,7 +234,34 @@ export async function GET(request: NextRequest) {
     params.push(limit, offset);
     
     // Execute query
-    const rows = db.prepare(sql).all(...params) as DocumentRow[];
+    let rows: DocumentRow[] = [];
+    try {
+      rows = db.prepare(sql).all(...params) as DocumentRow[];
+    } catch (queryErr: any) {
+      console.error("Error executing documents query:", queryErr);
+      console.error("Error message:", queryErr?.message);
+      console.error("SQL:", sql);
+      console.error("Params:", params);
+      console.error("Params length:", params.length);
+      // Count placeholders in SQL
+      const placeholderCount = (sql.match(/\?/g) || []).length;
+      console.error("Placeholder count in SQL:", placeholderCount);
+      console.error("Expected params count:", placeholderCount);
+      
+      // Return error response with details for debugging
+      return NextResponse.json(
+        { 
+          error: "Database query failed",
+          message: queryErr?.message || "Unknown error",
+          details: process.env.NODE_ENV === "development" ? {
+            sql: sql.substring(0, 500), // Truncate for safety
+            paramCount: params.length,
+            placeholderCount
+          } : undefined
+        },
+        { status: 500 }
+      );
+    }
     
     // Transform results
     const documents = rows.map(transformRow);

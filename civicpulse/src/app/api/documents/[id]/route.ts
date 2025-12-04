@@ -34,7 +34,24 @@ export async function GET(
       );
     }
     
-    // Join user_document_metadata if googleId is provided
+    // Check if user_document_metadata table exists
+    let userMetadataTableExists = false;
+    if (googleId) {
+      try {
+        const tableCheck = db.prepare(`
+          SELECT name FROM sqlite_master 
+          WHERE type='table' AND name='user_document_metadata'
+        `).get() as { name: string } | undefined;
+        userMetadataTableExists = !!tableCheck;
+      } catch (err) {
+        console.error("Error checking user_document_metadata table:", err);
+        userMetadataTableExists = false;
+      }
+    }
+    
+    const useUserMetadata = googleId && userMetadataTableExists;
+    
+    // Build query with conditional user metadata join
     const query = `
       SELECT 
         d.id,
@@ -49,9 +66,9 @@ export async function GET(
         m.counties,
         m.meeting_date,
         m.doc_types,
-        COALESCE(um.impact, m.impact) as impact,
-        COALESCE(um.stage, m.stage) as stage,
-        COALESCE(um.topics, m.topics) as topics,
+        ${useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact"} as impact,
+        ${useUserMetadata ? "COALESCE(um.stage, m.stage)" : "m.stage"} as stage,
+        ${useUserMetadata ? "COALESCE(um.topics, m.topics)" : "m.topics"} as topics,
         m.keyword_hits,
         m.extracted_text,
         m.pdf_preview,
@@ -61,11 +78,11 @@ export async function GET(
         m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
-      ${googleId ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
+      ${useUserMetadata ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
       WHERE d.id = ?
     `;
 
-    const row = googleId 
+    const row = useUserMetadata
       ? db.prepare(query).get(googleId, id) as DocumentRow | undefined
       : db.prepare(query).get(id) as DocumentRow | undefined;
 

@@ -237,7 +237,7 @@ export default function SearchPage() {
                   query: e.target.value,
                 }))
               }
-              placeholder='e.g. ("utility-scale" AND zoning) AND (setback OR buffer)'
+              placeholder="Type to search documents..."
               className="input mt-2"
             />
           </Card>

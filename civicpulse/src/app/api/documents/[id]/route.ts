@@ -52,6 +52,7 @@ export async function GET(
     const useUserMetadata = googleId && userMetadataTableExists;
     
     // Build query with conditional user metadata join
+    // Use CASE to check if user metadata exists - if it does, use it (even if null), otherwise use global
     const query = `
       SELECT 
         d.id,
@@ -66,9 +67,9 @@ export async function GET(
         m.counties,
         m.meeting_date,
         m.doc_types,
-        ${useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact"} as impact,
-        ${useUserMetadata ? "COALESCE(um.stage, m.stage)" : "m.stage"} as stage,
-        ${useUserMetadata ? "COALESCE(um.topics, m.topics)" : "m.topics"} as topics,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.impact ELSE m.impact END" : "m.impact"} as impact,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.stage ELSE m.stage END" : "m.stage"} as stage,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.topics ELSE m.topics END" : "m.topics"} as topics,
         m.keyword_hits,
         m.extracted_text,
         m.pdf_preview,
@@ -178,6 +179,7 @@ export async function PATCH(
     db.prepare(insertQuery).run(googleId, id, finalImpact, finalStage, finalTopics);
 
     // Fetch and return updated document with user-specific metadata
+    // Use CASE to check if user metadata exists - if it does, use it (even if null), otherwise use global
     const selectQuery = `
       SELECT 
         d.id,
@@ -192,9 +194,9 @@ export async function PATCH(
         m.counties,
         m.meeting_date,
         m.doc_types,
-        COALESCE(um.impact, m.impact) as impact,
-        COALESCE(um.stage, m.stage) as stage,
-        COALESCE(um.topics, m.topics) as topics,
+        CASE WHEN um.user_google_id IS NOT NULL THEN um.impact ELSE m.impact END as impact,
+        CASE WHEN um.user_google_id IS NOT NULL THEN um.stage ELSE m.stage END as stage,
+        CASE WHEN um.user_google_id IS NOT NULL THEN um.topics ELSE m.topics END as topics,
         m.keyword_hits,
         m.extracted_text,
         m.pdf_preview,

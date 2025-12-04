@@ -108,13 +108,14 @@ export async function GET(request: NextRequest) {
     
     // Build query with user-specific metadata join if googleId is provided AND table exists
     const useUserMetadata = googleId && userMetadataTableExists;
+    // Use CASE to check if user metadata exists - if it does, use it (even if null), otherwise use global
     let sql = `
       SELECT 
         d.id, d.source_id, d.file_url, d.content_hash, d.bytes_size, d.created_at,
         m.title, m.entity, m.jurisdiction, m.counties, m.meeting_date, m.doc_types,
-        ${useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact"} as impact,
-        ${useUserMetadata ? "COALESCE(um.stage, m.stage)" : "m.stage"} as stage,
-        ${useUserMetadata ? "COALESCE(um.topics, m.topics)" : "m.topics"} as topics,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.impact ELSE m.impact END" : "m.impact"} as impact,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.stage ELSE m.stage END" : "m.stage"} as stage,
+        ${useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.topics ELSE m.topics END" : "m.topics"} as topics,
         m.keyword_hits, m.extracted_text, m.pdf_preview,
         m.summary, m.full_text, m.attachments, m.updated_at
       FROM documents d
@@ -156,32 +157,32 @@ export async function GET(request: NextRequest) {
       counties.forEach(c => params.push(`%"${c}"%`));
     }
     
-    // Impact filter (use COALESCE to check both user and global metadata if using user metadata)
+    // Impact filter (use CASE to check both user and global metadata if using user metadata)
     if (impact.length > 0) {
       const impactPlaceholders = impact.map(() => "?").join(",");
       if (useUserMetadata) {
-        sql += ` AND COALESCE(um.impact, m.impact) IN (${impactPlaceholders})`;
+        sql += ` AND (CASE WHEN um.user_google_id IS NOT NULL THEN um.impact ELSE m.impact END) IN (${impactPlaceholders})`;
       } else {
         sql += ` AND m.impact IN (${impactPlaceholders})`;
       }
       params.push(...impact);
     }
     
-    // Stage filter (use COALESCE to check both user and global metadata if using user metadata)
+    // Stage filter (use CASE to check both user and global metadata if using user metadata)
     if (stage.length > 0) {
       const stagePlaceholders = stage.map(() => "?").join(",");
       if (useUserMetadata) {
-        sql += ` AND COALESCE(um.stage, m.stage) IN (${stagePlaceholders})`;
+        sql += ` AND (CASE WHEN um.user_google_id IS NOT NULL THEN um.stage ELSE m.stage END) IN (${stagePlaceholders})`;
       } else {
         sql += ` AND m.stage IN (${stagePlaceholders})`;
       }
       params.push(...stage);
     }
     
-    // Topics filter (use COALESCE to check both user and global metadata if using user metadata)
+    // Topics filter (use CASE to check both user and global metadata if using user metadata)
     if (topics.length > 0) {
       if (useUserMetadata) {
-        const topicConditions = topics.map(() => "COALESCE(um.topics, m.topics) LIKE ?").join(" OR ");
+        const topicConditions = topics.map(() => "(CASE WHEN um.user_google_id IS NOT NULL THEN um.topics ELSE m.topics END) LIKE ?").join(" OR ");
         sql += ` AND (${topicConditions})`;
       } else {
         const topicConditions = topics.map(() => "m.topics LIKE ?").join(" OR ");
@@ -221,10 +222,10 @@ export async function GET(request: NextRequest) {
       // Continue with total = 0 if count fails
     }
     
-    // Sorting (use COALESCE for impact to sort by user-specific value if using user metadata)
+    // Sorting (use CASE for impact to sort by user-specific value if using user metadata)
     const sortColumn = sortBy === "meetingDate" ? "m.meeting_date" :
                        sortBy === "createdAt" ? "d.created_at" :
-                       sortBy === "impact" ? (useUserMetadata ? "COALESCE(um.impact, m.impact)" : "m.impact") :
+                       sortBy === "impact" ? (useUserMetadata ? "CASE WHEN um.user_google_id IS NOT NULL THEN um.impact ELSE m.impact END" : "m.impact") :
                        sortBy === "title" ? "m.title" : "m.meeting_date";
     const order = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
     sql += ` ORDER BY ${sortColumn} ${order}`;

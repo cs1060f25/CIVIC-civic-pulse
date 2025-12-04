@@ -10,7 +10,7 @@ env:
   GCP_PROJECT: civic-pulse-480006
   GCP_REGION: us-central1
   IMAGE_REGISTRY: us-central1-docker.pkg.dev
-  IMAGE_REPO: docker-repo
+  IMAGE_REPO: civicpulse
   CLUSTER_NAME: civicpulse-cluster
 
 jobs:

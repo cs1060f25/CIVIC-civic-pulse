@@ -46,6 +46,26 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker --quiet
 
+      - name: Enable Container Registry API and ensure GCR bucket exists
+        run: |
+          # Enable Container Registry API (required for GCR)
+          echo "Enabling Container Registry API..."
+          gcloud services enable containerregistry.googleapis.com --project=${{ env.GCP_PROJECT }} || true
+          
+          # GCR uses a Cloud Storage bucket named artifacts.PROJECT_ID.appspot.com
+          # Try to create it if it doesn't exist (requires storage.admin role)
+          BUCKET_NAME="artifacts.${{ env.GCP_PROJECT }}.appspot.com"
+          echo "Checking GCR bucket: $BUCKET_NAME"
+          if ! gsutil ls -b gs://$BUCKET_NAME &>/dev/null; then
+            echo "Creating GCR bucket: $BUCKET_NAME"
+            gsutil mb -p ${{ env.GCP_PROJECT }} -l ${{ env.GCP_REGION }} gs://$BUCKET_NAME || {
+              echo "Warning: Could not create bucket. It may be created automatically on first push."
+              echo "If push fails, ensure service account has 'Storage Admin' role (roles/storage.admin)"
+            }
+          else
+            echo "GCR bucket exists: $BUCKET_NAME"
+          fi
+
       - name: Get Google Client ID from Pulumi config
         id: get-config
         working-directory: infrastructure

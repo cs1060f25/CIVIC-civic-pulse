@@ -68,6 +68,9 @@ export interface SearchUiState {
   counties: string[];
   meetingDateFrom: string | null; // ISO date (yyyy-mm-dd) or null
   meetingDateTo: string | null;
+  /** Selected topic filters (normalized topic keys, e.g. "taxes_and_budget") */
+  topics: string[];
+  /** IDs of documents selected in the current search results (for adding to brief) */
   selectedIds: string[];
   page: number;
 }

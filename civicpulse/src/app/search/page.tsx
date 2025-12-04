@@ -100,10 +100,10 @@ export default function SearchPage() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-[60vh] flex items-center justify-center px-4 bg-white">
+      <main className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-4">
-          <h1 className="text-2xl font-semibold text-gray-900">Sign in to search CivicPulse</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-semibold text-[--color-foreground]">Sign in to search CivicPulse</h1>
+          <p className="text-[--color-muted]">
             Please sign in to access the search functionality.
           </p>
           <Link
@@ -118,9 +118,9 @@ export default function SearchPage() {
   }
 
   return (
-    <main className="w-full py-8 bg-white">
+    <main className="w-full py-8">
       <div className="px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Search</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-[--color-foreground]">Search</h1>
         <div className="mt-6 grid lg:grid-cols-4 gap-6">
           <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-8 lg:h-fit">
           {/* Button shown in sidebar on desktop only */}
@@ -170,7 +170,7 @@ export default function SearchPage() {
                         selectedDocTypes: toggle(prev.selectedDocTypes, d),
                       }))
                     }
-                    className={`chip ${active ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300 text-blue-900 font-medium" : "text-gray-900"}`}
+                    className={`chip ${active ? "ring-2 ring-[--ring-color] bg-[--color-brand-100] border-[--color-brand-400] text-[--color-brand-900] font-medium" : ""}`}
                   >
                     {d}
                   </button>
@@ -197,7 +197,7 @@ export default function SearchPage() {
             <label className="block text-sm font-medium">Date range</label>
             <div className="mt-2 space-y-2">
               <div>
-                <label className="block text-xs text-gray-900 mb-1">Start date</label>
+                <label className="block text-xs text-[--color-muted] mb-1">Start date</label>
                 <DatePicker
                   selected={startDate}
                   onChange={(date: Date | null) =>
@@ -214,7 +214,7 @@ export default function SearchPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-900 mb-1">End date</label>
+                <label className="block text-xs text-[--color-muted] mb-1">End date</label>
                 <DatePicker
                   selected={endDate}
                   onChange={(date: Date | null) =>
@@ -251,62 +251,60 @@ export default function SearchPage() {
           </Button>
           
           {loading && (
-            <Card className="p-6 text-sm text-gray-600 text-center bg-gray-50">Loading documents...</Card>
+            <Card className="p-6 text-sm text-[--color-muted] text-center">Loading documents...</Card>
           )}
           {error && (
-            <Card className="p-6 text-sm text-red-600 bg-red-50">Error: {error}</Card>
+            <Card className="p-6 text-sm text-[--color-danger]">Error: {error}</Card>
           )}
           {!loading && !error && results.length === 0 && (
-            <Card className="p-6 text-sm text-gray-600 bg-gray-50">No results match your filters.</Card>
+            <Card className="p-6 text-sm text-[--color-muted]">No results match your filters.</Card>
           )}
           
           {/* Desktop Table View - hidden on mobile */}
           {!loading && !error && results.length > 0 && (
             <div className="hidden lg:block rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-hidden">
-              <div className="grid grid-cols-12 bg-white/10 text-[13px] font-medium border-b border-white/10">
+              <div className="grid grid-cols-12 bg-surface-2/60 text-[13px] font-medium text-[--color-foreground] border-b border-white/10">
                 <div className="col-span-1 px-4 py-3 flex items-center">Select</div>
                 <div className="col-span-4 px-4 py-3 flex items-center">Title</div>
-                <div className="col-span-3 px-4 py-3 flex items-center">Entity / County</div>
-                <div className="col-span-2 px-4 py-3 flex items-center">Docs</div>
-                <div className="col-span-1 px-4 py-3 flex items-center">Date</div>
-                <div className="col-span-1 px-4 py-3 flex items-center">Impact</div>
+                <div className="col-span-2 px-4 py-3 flex items-center">Jurisdiction</div>
+                <div className="col-span-1 px-4 py-3 flex items-center">Docs</div>
+                <div className="col-span-2 px-4 py-3 flex items-center">Date</div>
+                <div className="col-span-2 px-4 py-3 flex items-center">Impact</div>
               </div>
               {results.map((item, idx) => (
-                <div key={item.id} className={`border-t border-white/10 ${idx % 2 ? "bg-white/[0.03]" : ""}`}>
-                  <div className="grid grid-cols-12 text-sm">
-                    <div className="col-span-1 px-4 py-4 flex items-center">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                        checked={selectedIds.includes(item.id)}
-                        onChange={() => toggleSelected(item.id)}
-                        disabled={state.briefItemIds.includes(item.id)}
-                        title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
-                      />
+                <div key={item.id} className={`grid grid-cols-12 border-t border-[--color-foreground]/10 text-sm leading-7 ${idx % 2 ? "bg-[--color-foreground]/[0.03]" : ""}`}>
+                  <div className="col-span-1 px-4 py-4">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 align-middle accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      disabled={state.briefItemIds.includes(item.id)}
+                      title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
+                    />
+                  </div>
+                  <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-foreground] hover:text-[--color-brand-300]">{item.title}</Link>
+                      {state.briefItemIds.includes(item.id) && (
+                        <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
+                      )}
                     </div>
-                    <div className="col-span-4 px-4 py-4 overflow-hidden break-words">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/item/${item.id}`} className="font-medium hover:underline text-gray-900">{item.title}</Link>
-                        {state.briefItemIds.includes(item.id) && (
-                          <span className="shrink-0"><Badge color="brand">In Brief</Badge></span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="col-span-3 px-4 py-4 overflow-hidden break-words flex flex-col justify-center">
-                      <div className="font-medium text-xs">{item.entity}</div>
-                      <div className="text-xs text-gray-600">{item.jurisdiction}</div>
-                    </div>
-                    <div className="col-span-2 px-4 py-4 text-xs overflow-hidden text-ellipsis flex items-center">{item.docTypes.join(", ")}</div>
-                    <div className="col-span-1 px-4 py-4 text-xs whitespace-nowrap flex items-center">
-                      {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                    </div>
-                    <div className="col-span-1 px-4 py-4 flex items-center">
-                      {item.impact ? <ImpactBadge level={item.impact} /> : <span className="text-xs text-gray-500">—</span>}
-                    </div>
+                  </div>
+                  <div className="col-span-2 px-4 py-4 overflow-hidden break-words flex flex-col justify-center">
+                    <div className="font-medium text-xs text-[--color-foreground]">{item.entity}</div>
+                    <div className="text-xs text-[--color-muted]">{item.jurisdiction}</div>
+                  </div>
+                  <div className="col-span-1 px-4 py-4 text-xs text-[--color-muted] overflow-hidden text-ellipsis flex items-center">{item.docTypes.join(", ")}</div>
+                  <div className="col-span-2 px-4 py-4 text-xs text-[--color-muted] whitespace-nowrap flex items-center">
+                    {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                  </div>
+                  <div className="col-span-2 px-4 py-4 flex items-center">
+                    {item.impact ? <ImpactBadge level={item.impact} /> : <span className="text-xs text-[--color-muted]">—</span>}
                   </div>
                   {item.summary && (
                     <div className="col-span-12 px-4 pb-4 pt-0">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-[--color-muted]">
                         {item.summary}
                       </div>
                     </div>
@@ -319,7 +317,7 @@ export default function SearchPage() {
           {/* Pagination Controls */}
           {!loading && !error && results.length > 0 && (
             <div className="flex items-center justify-between mt-6 mb-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-[--color-muted]">
                 Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, total)} of {total} documents
               </div>
               <div className="flex items-center gap-2">
@@ -327,7 +325,6 @@ export default function SearchPage() {
                   variant="secondary"
                   onClick={() => setSearchUi((prev) => ({ ...prev, page: Math.max(0, prev.page - 1) }))}
                   disabled={page === 0}
-                  className="text-gray-900"
                 >
                   ← Previous
                 </Button>
@@ -335,7 +332,6 @@ export default function SearchPage() {
                   variant="secondary"
                   onClick={() => setSearchUi((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={(page + 1) * pageSize >= total}
-                  className="text-gray-900"
                 >
                   Next →
                 </Button>
@@ -358,14 +354,14 @@ export default function SearchPage() {
                       title={state.briefItemIds.includes(item.id) ? "Already in Brief" : "Select item"}
                     />
                     <div className="flex-1 min-w-0">
-                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-gray-900 block">
+                      <Link href={`/item/${item.id}`} className="font-medium hover:underline text-[--color-foreground] hover:text-[--color-brand-300] block">
                         {item.title}
                       </Link>
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-xs text-[--color-muted] mt-1">
                         {item.entity} — {item.jurisdiction}
                       </div>
                       {item.summary && (
-                        <div className="text-sm text-gray-600 mt-2 line-clamp-2">
+                        <div className="text-sm text-[--color-muted] mt-2 line-clamp-2">
                           {item.summary}
                         </div>
                       )}
@@ -375,7 +371,7 @@ export default function SearchPage() {
                           <Badge color="brand">In Brief</Badge>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 mt-2">
+                      <div className="text-xs text-[--color-muted] mt-2">
                         {item.docTypes.join(", ")} • {item.meetingDate ? new Date(item.meetingDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                       </div>
                     </div>
@@ -388,7 +384,7 @@ export default function SearchPage() {
           {/* Pagination Controls for Mobile */}
           {!loading && !error && results.length > 0 && (
             <div className="lg:hidden flex items-center justify-between mt-6 mb-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-[--color-muted]">
                 Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, total)} of {total}
               </div>
               <div className="flex items-center gap-2">
@@ -396,7 +392,6 @@ export default function SearchPage() {
                   variant="secondary"
                   onClick={() => setSearchUi((prev) => ({ ...prev, page: Math.max(0, prev.page - 1) }))}
                   disabled={page === 0}
-                  className="text-gray-900"
                 >
                   ← Prev
                 </Button>
@@ -404,7 +399,6 @@ export default function SearchPage() {
                   variant="secondary"
                   onClick={() => setSearchUi((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={(page + 1) * pageSize >= total}
-                  className="text-gray-900"
                 >
                   Next →
                 </Button>

@@ -131,7 +131,7 @@ export default function ItemDetailPage() {
   if (loading) {
     return (
       <main className="w-full py-8">
-        <div className="text-sm text-gray-600">Loading document...</div>
+        <div className="text-sm text-[--color-muted]">Loading document...</div>
       </main>
     );
   }
@@ -139,9 +139,9 @@ export default function ItemDetailPage() {
   if (error || !item) {
     return (
       <main className="w-full py-8">
-        <div className="text-sm text-gray-900">
+        <div className="text-sm text-[--color-foreground]">
           {error || "Document not found."}{" "}
-          <Link className="text-blue-600 hover:underline" href="/search">
+          <Link className="text-[--color-brand-400] hover:underline" href="/search">
             Back to search
           </Link>
         </div>
@@ -150,14 +150,14 @@ export default function ItemDetailPage() {
   }
 
   return (
-    <main className="w-full py-8 bg-white">
+    <main className="w-full py-8">
       <div className="px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{item.title}</h1>
-              <div className="text-gray-600 flex items-center gap-2">
+              <h1 className="text-3xl font-bold text-[--color-foreground] mb-2">{item.title}</h1>
+              <div className="text-[--color-muted] flex items-center gap-2">
                 <span className="font-semibold">{item.entity}</span>
                 <span>•</span>
                 <span>{item.jurisdiction}</span>
@@ -165,7 +165,7 @@ export default function ItemDetailPage() {
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
               {item && state.briefItemIds.includes(item.id) ? (
-                <Button variant="secondary" onClick={() => removeFromBrief(item.id)} className="text-gray-900">
+                <Button variant="secondary" onClick={() => removeFromBrief(item.id)}>
                   Remove from Brief
                 </Button>
               ) : (
@@ -180,16 +180,16 @@ export default function ItemDetailPage() {
         {/* Document Info Grid */}
         <div className="mb-8 grid md:grid-cols-2 gap-6">
           {/* Basic Info Card */}
-          <Card className="p-6 bg-gray-50">
-            <div className="font-semibold text-gray-900 mb-4">Document Information</div>
+          <Card className="p-6">
+            <div className="font-semibold text-[--color-foreground] mb-4">Document Information</div>
             <div className="space-y-3 text-sm">
               <div>
-                <div className="text-gray-600 font-medium mb-1">Document Types</div>
-                <div className="text-gray-900">{item.docTypes.join(", ") || "N/A"}</div>
+                <div className="text-[--color-muted] font-medium mb-1">Document Types</div>
+                <div className="text-[--color-foreground]">{item.docTypes.join(", ") || "N/A"}</div>
               </div>
               <div>
-                <div className="text-gray-600 font-medium mb-1">Meeting Date</div>
-                <div className="text-gray-900">
+                <div className="text-[--color-muted] font-medium mb-1">Meeting Date</div>
+                <div className="text-[--color-foreground]">
                   {item.meetingDate
                     ? new Date(item.meetingDate).toLocaleDateString(undefined, {
                         month: "long",
@@ -200,21 +200,20 @@ export default function ItemDetailPage() {
                 </div>
               </div>
               <div>
-                <div className="text-gray-600 font-medium mb-1">Counties</div>
-                <div className="text-gray-900">{item.counties.join(", ") || "N/A"}</div>
+                <div className="text-[--color-muted] font-medium mb-1">Counties</div>
+                <div className="text-[--color-foreground]">{item.counties.join(", ") || "N/A"}</div>
               </div>
             </div>
           </Card>
 
           {/* Editable Signals Card */}
-          <Card className="p-6 bg-gray-50">
+          <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="font-semibold text-gray-900">Metadata</div>
+              <div className="font-semibold text-[--color-foreground]">Metadata</div>
               {!isEditing ? (
                 <Button
                   variant="secondary"
                   onClick={() => setIsEditing(true)}
-                  className="text-gray-900"
                 >
                   Edit
                 </Button>
@@ -228,7 +227,6 @@ export default function ItemDetailPage() {
                       setEditingStage(item.stage);
                       setEditingTopics(item.topics || []);
                     }}
-                    className="text-gray-900"
                   >
                     Cancel
                   </Button>
@@ -246,7 +244,7 @@ export default function ItemDetailPage() {
             <div className="space-y-4 text-sm">
               {/* Impact Level */}
               <div>
-                <div className="text-gray-600 font-medium mb-2">Impact Level</div>
+                <div className="text-[--color-muted] font-medium mb-2">Impact Level</div>
                 {isEditing ? (
                   <select
                     value={editingImpact || ""}
@@ -255,7 +253,7 @@ export default function ItemDetailPage() {
                         e.target.value === "" ? null : (e.target.value as ImpactLevel)
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md text-[--color-foreground] bg-white/5"
                   >
                     <option value="">None</option>
                     <option value="Low">Low</option>
@@ -263,7 +261,7 @@ export default function ItemDetailPage() {
                     <option value="High">High</option>
                   </select>
                 ) : (
-                  <div className="text-gray-900">
+                  <div className="text-[--color-foreground]">
                     {item.impact ? <ImpactBadge level={item.impact} /> : <span>Not set</span>}
                   </div>
                 )}
@@ -271,14 +269,14 @@ export default function ItemDetailPage() {
 
               {/* Stage */}
               <div>
-                <div className="text-gray-600 font-medium mb-2">Stage</div>
+                <div className="text-[--color-muted] font-medium mb-2">Stage</div>
                 {isEditing ? (
                   <select
                     value={editingStage || ""}
                     onChange={(e) =>
                       setEditingStage(e.target.value === "" ? undefined : e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md text-[--color-foreground] bg-white/5"
                   >
                     <option value="">Not set</option>
                     {STAGE_OPTIONS.map((stage) => (
@@ -288,25 +286,25 @@ export default function ItemDetailPage() {
                     ))}
                   </select>
                 ) : (
-                  <div className="text-gray-900">{item.stage || "Not set"}</div>
+                  <div className="text-[--color-foreground]">{item.stage || "Not set"}</div>
                 )}
               </div>
 
               {/* Topics */}
               <div>
-                <div className="text-gray-600 font-medium mb-2">Topics</div>
+                <div className="text-[--color-muted] font-medium mb-2">Topics</div>
                 {isEditing ? (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                       {editingTopics.map((topic) => (
                         <span
                           key={topic}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800 border border-blue-200"
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                         >
                           {formatTopicLabel(topic)}
                           <button
                             onClick={() => handleRemoveTopic(topic)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-[--color-brand-400] hover:text-[--color-brand-200]"
                             type="button"
                           >
                             ×
@@ -315,13 +313,13 @@ export default function ItemDetailPage() {
                       ))}
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-600 font-medium">Add Standard Topic:</div>
+                      <div className="text-xs text-[--color-muted] font-medium">Add Standard Topic:</div>
                       <div className="flex flex-wrap gap-2">
                         {STANDARD_TOPICS.filter((t) => !editingTopics.includes(t)).map((topic) => (
                           <button
                             key={topic}
                             onClick={() => handleAddTopic(topic)}
-                            className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-700"
+                            className="px-2 py-1 text-xs border border-white/20 rounded hover:bg-white/10 text-[--color-muted]"
                             type="button"
                           >
                             + {formatTopicLabel(topic)}
@@ -340,12 +338,11 @@ export default function ItemDetailPage() {
                             }
                           }}
                           placeholder="Add custom topic..."
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm"
+                          className="flex-1 px-3 py-2 border border-white/10 rounded-md text-[--color-foreground] bg-white/5 text-sm"
                         />
                         <Button
                           variant="secondary"
                           onClick={handleAddCustomTopic}
-                          className="text-gray-900"
                         >
                           Add
                         </Button>
@@ -358,13 +355,13 @@ export default function ItemDetailPage() {
                       item.topics.map((topic) => (
                         <span
                           key={topic}
-                          className="inline-block px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800 border border-blue-200"
+                          className="inline-block px-3 py-1 rounded-full text-xs bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                         >
                           {formatTopicLabel(topic)}
                         </span>
                       ))
                     ) : (
-                      <span className="text-gray-500 text-sm">No topics assigned</span>
+                      <span className="text-[--color-muted] text-sm">No topics assigned</span>
                     )}
                   </div>
                 )}
@@ -375,17 +372,17 @@ export default function ItemDetailPage() {
 
         {/* Summary Section */}
         {item.summary && (
-          <Card className="p-6 mb-8 bg-gray-50">
-            <div className="font-semibold text-gray-900 mb-3">Summary</div>
-            <div className="text-gray-700 leading-relaxed">{item.summary}</div>
+          <Card className="p-6 mb-8">
+            <div className="font-semibold text-[--color-foreground] mb-3">Summary</div>
+            <div className="text-[--color-muted] leading-relaxed">{item.summary}</div>
           </Card>
         )}
 
         {/* PDF Viewer Section */}
         {item.fileUrl && (
-          <Card className="p-6 mb-8 bg-gray-50">
-            <div className="font-semibold text-gray-900 mb-3">Original Document</div>
-            <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
+          <Card className="p-6 mb-8">
+            <div className="font-semibold text-[--color-foreground] mb-3">Original Document</div>
+            <div className="border border-white/10 rounded-lg overflow-hidden bg-white">
               <iframe
                 src={`/api/documents/${item.id}/pdf`}
                 className="w-full h-[800px]"
@@ -397,7 +394,7 @@ export default function ItemDetailPage() {
                 href={`/api/documents/${item.id}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
+                className="text-[--color-brand-400] hover:underline"
               >
                 Open in new tab →
               </a>
@@ -409,7 +406,7 @@ export default function ItemDetailPage() {
                       textSection.scrollIntoView({ behavior: "smooth" });
                     }
                   }}
-                  className="text-blue-600 hover:underline"
+                  className="text-[--color-brand-400] hover:underline"
                 >
                   View plain text version ↓
                 </button>
@@ -421,9 +418,9 @@ export default function ItemDetailPage() {
         {/* Full Text Section (collapsible alternative) */}
         {item.fullText && (
           <div id="full-text-section">
-            <Card className="p-6 mb-8 bg-gray-50">
-              <div className="font-semibold text-gray-900 mb-3">Full Document Text</div>
-              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap max-h-[600px] overflow-y-auto">
+            <Card className="p-6 mb-8">
+              <div className="font-semibold text-[--color-foreground] mb-3">Full Document Text</div>
+              <div className="text-[--color-muted] leading-relaxed whitespace-pre-wrap max-h-[600px] overflow-y-auto">
                 {item.fullText}
               </div>
             </Card>

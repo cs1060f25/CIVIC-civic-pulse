@@ -50,6 +50,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f1220; /* slate-50 */
+    --foreground: #eef2ff; /* slate-900 */
+    --muted: #9aa3b2; /* slate-600 */
+    --surface: #12162a;
+    --surface-2: #0b0e1b;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     --background: #f8fafc; /* slate-50 */

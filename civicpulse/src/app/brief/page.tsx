@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppState } from "@app/lib/state";
 import { SavedBrief } from "@app/lib/types";
 import type { FeedItem } from "@app/lib/types";
 import { Button, Card, Badge } from "@app/components/ui";
 import Link from "next/link";
 import { useAuth } from "@app/auth/AuthContext";
+import { formatTopicLabel } from "@app/lib/format";
 
 // Mock documents for testing (same as in search page)
 const MOCK_DOCUMENTS: FeedItem[] = [
@@ -152,11 +153,287 @@ export default function BriefPage() {
     { High: 0, Medium: 0, Low: 0 } as Record<"High" | "Medium" | "Low", number>
   );
 
-  const allTopics = Array.from(new Set(documents.flatMap((doc) => doc.topics))).sort();
+  // Topic aggregations
+  const topicCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const doc of documents) {
+      for (const topic of doc.topics || []) {
+        if (!topic) continue;
+        counts[topic] = (counts[topic] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [documents]);
 
-  // PDF Export Function - instant download
+  const allTopics = useMemo(
+    () => Object.keys(topicCounts).sort((a, b) => formatTopicLabel(a).localeCompare(formatTopicLabel(b))),
+    [topicCounts]
+  );
+
+  // Export brief as rich HTML (for printing/saving as PDF)
   const exportToPDF = () => {
-    // Create HTML content for PDF
+    // Topic distribution data
+    const topicEntries = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]);
+    const maxTopicCount =
+      topicEntries.length > 0 ? Math.max(...topicEntries.map(([, count]) => count)) : 0;
+
+    const topicDistributionHtml =
+      topicEntries.length > 0 && maxTopicCount > 0
+        ? `
+      <div class="chart">
+        ${topicEntries
+          .map(([topic, count]) => {
+            const width = (count / maxTopicCount) * 100;
+            const label = formatTopicLabel(topic);
+            return `
+          <div class="chart-row">
+            <div class="chart-label">${label}</div>
+            <div class="chart-bar-track">
+              <div class="chart-bar" style="width: ${Math.max(width, 8).toFixed(1)}%;"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+          </div>`;
+          })
+          .join("")}
+      </div>`
+        : "<p>No topics assigned in this brief.</p>";
+
+    // Document type distribution
+    const docTypeCounts: Record<string, number> = {};
+    for (const doc of documents) {
+      for (const dt of doc.docTypes || []) {
+        if (!dt) continue;
+        docTypeCounts[dt] = (docTypeCounts[dt] || 0) + 1;
+      }
+    }
+    const docTypeEntries = Object.entries(docTypeCounts).sort((a, b) => b[1] - a[1]);
+    const maxDocTypeCount =
+      docTypeEntries.length > 0 ? Math.max(...docTypeEntries.map(([, count]) => count)) : 0;
+
+    const docTypeDistributionHtml =
+      docTypeEntries.length > 0 && maxDocTypeCount > 0
+        ? `
+      <div class="chart">
+        ${docTypeEntries
+          .map(([type, count]) => {
+            const width = (count / maxDocTypeCount) * 100;
+            return `
+          <div class="chart-row">
+            <div class="chart-label">${type}</div>
+            <div class="chart-bar-track">
+              <div class="chart-bar" style="width: ${Math.max(width, 10).toFixed(1)}%;"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+          </div>`;
+          })
+          .join("")}
+      </div>`
+        : "<p>No document types available.</p>";
+
+    // Simple word cloud from document summaries only
+    const stopwords = new Set([
+      "the",
+      "and",
+      "of",
+      "to",
+      "in",
+      "for",
+      "on",
+      "at",
+      "by",
+      "with",
+      "a",
+      "an",
+      "or",
+      "from",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "this",
+      "that",
+      "it",
+      "as",
+      "we",
+      "you",
+      "they",
+      "their",
+      "our",
+      "city",
+      "county",
+      "council",
+      "board",
+      "agenda",
+      "meeting",
+      "document",
+      "final",
+      "summary",
+      "brief",
+      "report",
+      // User-requested low-information words
+      "key",
+      "items",
+      "include",
+      "includes",
+      "including",
+      "also",
+      "various",
+      "related",
+      "several",
+    ]);
+
+    const monthWords = new Set([
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "sept",
+      "oct",
+      "nov",
+      "dec",
+    ]);
+
+    const isDateLikeWord = (word: string) => {
+      if (!word) return false;
+      const w = word.toLowerCase();
+      if (monthWords.has(w)) return true;
+      // Pure numbers (days, years)
+      if (/^\d+$/.test(w)) return true;
+      // Ordinals like 1st, 2nd, 3rd, 4th
+      if (/^\d+(st|nd|rd|th)$/.test(w)) return true;
+      return false;
+    };
+
+    const wordCounts: Record<string, number> = {};
+    const bigramCounts: Record<string, number> = {};
+    const trigramCounts: Record<string, number> = {};
+    for (const doc of documents) {
+      if (!doc.summary) continue;
+
+      // Use only summary text and strip boilerplate openers like
+      // "This document is the final agenda for the Wichita City Council meeting on ..."
+      let summaryLower = doc.summary.toLowerCase();
+      summaryLower = summaryLower.replace(
+        /this document is the (final|draft)?\s*agenda for [^.]*\./g,
+        " "
+      );
+
+      const cleaned = summaryLower.replace(/[^a-z0-9\s]/g, " ");
+      const words = cleaned.split(/\s+/).filter(Boolean);
+
+      for (let i = 0; i < words.length; i++) {
+        const w1 = words[i];
+        if (w1.length > 3 && !stopwords.has(w1) && !isDateLikeWord(w1)) {
+          wordCounts[w1] = (wordCounts[w1] || 0) + 1;
+        }
+
+        if (i + 1 < words.length) {
+          const w2 = words[i + 1];
+          const bigram = `${w1} ${w2}`;
+          if (
+            !stopwords.has(w1) &&
+            !stopwords.has(w2) &&
+            !isDateLikeWord(w1) &&
+            !isDateLikeWord(w2)
+          ) {
+            bigramCounts[bigram] = (bigramCounts[bigram] || 0) + 1;
+          }
+        }
+
+        if (i + 2 < words.length) {
+          const w2 = words[i + 1];
+          const w3 = words[i + 2];
+          const trigram = `${w1} ${w2} ${w3}`;
+          if (
+            !stopwords.has(w1) &&
+            !stopwords.has(w2) &&
+            !stopwords.has(w3) &&
+            !isDateLikeWord(w1) &&
+            !isDateLikeWord(w2) &&
+            !isDateLikeWord(w3)
+          ) {
+            trigramCounts[trigram] = (trigramCounts[trigram] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    const wordEntries = Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 60);
+    const maxWordCount = wordEntries.length > 0 ? Math.max(...wordEntries.map(([, c]) => c)) : 0;
+
+    const wordCloudHtml =
+      wordEntries.length > 0 && maxWordCount > 0
+        ? `
+      <div class="word-cloud">
+        ${wordEntries
+          .map(([word, count]) => {
+            const ratio = count / maxWordCount;
+            const size = 12 + ratio * 24; // 12px to 36px
+            return `<span style="font-size:${size.toFixed(1)}px;">${word}</span>`;
+          })
+          .join(" ")}
+      </div>`
+        : "<p>Not enough text content to generate a word cloud.</p>";
+
+    const bigramEntries = Object.entries(bigramCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 40);
+    const maxBigramCount =
+      bigramEntries.length > 0 ? Math.max(...bigramEntries.map(([, c]) => c)) : 0;
+
+    const bigramCloudHtml =
+      bigramEntries.length > 0 && maxBigramCount > 0
+        ? `
+      <div class="word-cloud">
+        ${bigramEntries
+          .map(([phrase, count]) => {
+            const ratio = count / maxBigramCount;
+            const size = 11 + ratio * 18; // 11px to 29px
+            return `<span style="font-size:${size.toFixed(1)}px;">${phrase}</span>`;
+          })
+          .join(" ")}
+      </div>`
+        : "<p>Not enough phrase diversity to generate a bigram cloud.</p>";
+
+    const trigramEntries = Object.entries(trigramCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+    const maxTrigramCount =
+      trigramEntries.length > 0 ? Math.max(...trigramEntries.map(([, c]) => c)) : 0;
+
+    const trigramCloudHtml =
+      trigramEntries.length > 0 && maxTrigramCount > 0
+        ? `
+      <div class="word-cloud">
+        ${trigramEntries
+          .map(([phrase, count]) => {
+            const ratio = count / maxTrigramCount;
+            const size = 10 + ratio * 16; // 10px to 26px
+            return `<span style="font-size:${size.toFixed(1)}px;">${phrase}</span>`;
+          })
+          .join(" ")}
+      </div>`
+        : "<p>Not enough phrase diversity to generate a trigram cloud.</p>";
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -207,7 +484,7 @@ export default function BriefPage() {
             }
             .metadata-label {
               font-weight: 600;
-              width: 140px;
+              width: 160px;
               color: #555;
             }
             .metadata-value {
@@ -238,45 +515,49 @@ export default function BriefPage() {
               font-size: 20px;
               font-weight: 700;
             }
-            .document {
-              margin-bottom: 24px;
-              padding: 16px;
-              border: 1px solid #e5e5e5;
-              border-radius: 8px;
-              page-break-inside: avoid;
-            }
-            .doc-title {
-              font-size: 16px;
-              font-weight: 600;
-              margin-bottom: 8px;
-              color: #000;
-            }
-            .doc-meta {
-              font-size: 13px;
-              color: #666;
-              margin-bottom: 8px;
-            }
-            .doc-detail {
-              font-size: 13px;
-              margin: 4px 0;
-            }
-            .doc-detail strong {
-              font-weight: 600;
-              color: #555;
-            }
-            .topics {
+            .chart {
+              margin-top: 12px;
               display: flex;
-              flex-wrap: wrap;
+              flex-direction: column;
               gap: 6px;
-              margin-top: 8px;
             }
-            .topic-tag {
+            .chart-row {
+              display: grid;
+              grid-template-columns: minmax(0, 180px) 1fr auto;
+              align-items: center;
+              gap: 8px;
+              font-size: 12px;
+            }
+            .chart-label {
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .chart-bar-track {
+              background: #f1f1f1;
+              border-radius: 999px;
+              overflow: hidden;
+              height: 10px;
+            }
+            .chart-bar {
+              height: 100%;
+              background: linear-gradient(90deg, #4f46e5, #22c55e);
+            }
+            .chart-value {
+              font-weight: 600;
+              min-width: 24px;
+              text-align: right;
+            }
+            .word-cloud {
+              margin-top: 16px;
+              padding: 12px;
+              border-radius: 8px;
+              background: #fafafa;
+              line-height: 1.4;
+            }
+            .word-cloud span {
+              margin: 4px 6px;
               display: inline-block;
-              padding: 4px 10px;
-              background: #e8eaf6;
-              border-radius: 12px;
-              font-size: 11px;
-              color: #3f51b5;
             }
           </style>
         </head>
@@ -295,77 +576,57 @@ export default function BriefPage() {
               <div class="metadata-label">Counties:</div>
               <div class="metadata-value">${allCounties.join(", ")}</div>
             </div>
-            ` : ''}
+            ` : ""}
             <div class="metadata-row">
-              <div class="metadata-label">Meeting Date:</div>
+              <div class="metadata-label">Meeting Date Range:</div>
               <div class="metadata-value">${dateRange}</div>
             </div>
-            ${docTypes.length > 0 ? `
-            <div class="metadata-row">
-              <div class="metadata-label">Document Types:</div>
-              <div class="metadata-value">${docTypes.join(", ")}</div>
-            </div>
-            ` : ''}
-            ${allTopics.length > 0 ? `
-            <div class="metadata-row">
-              <div class="metadata-label">Topics:</div>
-              <div class="metadata-value">${allTopics.join(", ")}</div>
-            </div>
-            ` : ''}
-            
-            <div style="margin-top: 16px;">
-              <div class="metadata-label" style="margin-bottom: 8px;">Impact Level:</div>
-              <div class="impact-grid">
-                <div class="impact-box impact-high">
-                  <div class="impact-label">High</div>
-                  <div class="impact-count">${impacts.High}</div>
-                </div>
-                <div class="impact-box impact-medium">
-                  <div class="impact-label">Medium</div>
-                  <div class="impact-count">${impacts.Medium}</div>
-                </div>
-                <div class="impact-box impact-low">
-                  <div class="impact-label">Low</div>
-                  <div class="impact-count">${impacts.Low}</div>
-                </div>
-              </div>
-            </div>
+            <!-- Document types omitted here; see chart below -->
           </div>
           
-          <h2>Documents</h2>
-          ${documents.map((item, index) => `
-            <div class="document">
-              <div class="doc-title">${index + 1}. ${item.title}</div>
-              <div class="doc-meta">${item.entity} — ${item.jurisdiction}</div>
-              ${item.meetingDate ? `
-              <div class="doc-detail"><strong>Meeting Date:</strong> ${new Date(item.meetingDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
-              ` : ''}
-              <div class="doc-detail"><strong>Document Types:</strong> ${item.docTypes.join(", ")}</div>
-              <div class="doc-detail"><strong>Impact:</strong> ${item.impact}</div>
-              ${item.topics.length > 0 ? `
-              <div class="doc-detail"><strong>Topics:</strong></div>
-              <div class="topics">
-                ${item.topics.map(topic => `<span class="topic-tag">${topic}</span>`).join('')}
-              </div>
-              ` : ''}
+          <h2>Impact Summary</h2>
+          <div class="impact-grid">
+            <div class="impact-box impact-high">
+              <div class="impact-label">High</div>
+              <div class="impact-count">${impacts.High}</div>
             </div>
-          `).join('')}
+            <div class="impact-box impact-medium">
+              <div class="impact-label">Medium</div>
+              <div class="impact-count">${impacts.Medium}</div>
+            </div>
+            <div class="impact-box impact-low">
+              <div class="impact-label">Low</div>
+              <div class="impact-count">${impacts.Low}</div>
+            </div>
+          </div>
+
+          <h2>Topic Distribution</h2>
+          ${topicDistributionHtml}
+
+          <h2>Document Types</h2>
+          ${docTypeDistributionHtml}
+
+          <h2>Word Cloud (Top Terms)</h2>
+          ${wordCloudHtml}
+
+          <h2>Word Cloud (Top Bigrams)</h2>
+          ${bigramCloudHtml}
+
+          <h2>Word Cloud (Top Trigrams)</h2>
+          ${trigramCloudHtml}
         </body>
       </html>
     `;
 
-    // Create a blob from the HTML content
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const blob = new Blob([htmlContent], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    
-    // Create a temporary link and trigger download
-    const link = document.createElement('a');
+
+    const link = document.createElement("a");
     link.href = url;
-    link.download = `CivicPulse-Brief-${new Date().toISOString().split('T')[0]}.html`;
+    link.download = `CivicPulse-Brief-${new Date().toISOString().split("T")[0]}.html`;
     document.body.appendChild(link);
     link.click();
-    
-    // Cleanup
+
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
@@ -500,7 +761,7 @@ export default function BriefPage() {
                                 key={topic}
                                 className="px-2 py-0.5 rounded-full text-[10px] bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                               >
-                                {topic}
+                                {formatTopicLabel(topic)}
                               </span>
                             ))}
                           </div>
@@ -562,7 +823,8 @@ export default function BriefPage() {
                         key={topic}
                         className="px-2 py-0.5 rounded-full text-[10px] bg-[--color-brand-500]/20 text-[--color-brand-300] border border-[--color-brand-500]/30"
                       >
-                        {topic}
+                        {formatTopicLabel(topic)}{" "}
+                        <span className="opacity-70">({topicCounts[topic] ?? 0})</span>
                       </span>
                     ))
                   ) : (

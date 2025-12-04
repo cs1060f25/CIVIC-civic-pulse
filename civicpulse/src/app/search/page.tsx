@@ -5,6 +5,7 @@ import type { DocumentType, FeedItem } from "@app/lib/types";
 import Link from "next/link";
 import { Badge, Button, Card } from "@app/components/ui";
 import { CountyPicker } from "@app/components/CountyPicker";
+import { TopicPicker } from "@app/components/TopicPicker";
 import { useAppState } from "@app/lib/state";
 import { formatHitLabel } from "@app/lib/format";
 import { useAuth } from "@app/auth/AuthContext";
@@ -20,6 +21,8 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [globalSelectCount, setGlobalSelectCount] = useState<number | null>(null);
   const pageSize = 10;
   const page = state.searchUi.page;
   const {
@@ -28,6 +31,7 @@ export default function SearchPage() {
     counties,
     meetingDateFrom,
     meetingDateTo,
+    topics,
     selectedIds,
   } = state.searchUi;
 
@@ -41,6 +45,9 @@ export default function SearchPage() {
         ? prev.selectedIds.filter((x) => x !== id)
         : [...prev.selectedIds, id],
     }));
+    if (globalSelectCount !== null) {
+      setGlobalSelectCount(null);
+    }
   }
 
   function toggle<T>(arr: T[], value: T): T[] {
@@ -60,15 +67,7 @@ export default function SearchPage() {
       setError(null);
       
       try {
-        const params = new URLSearchParams();
-        if (user?.googleId) params.append("googleId", user.googleId);
-        if (query) params.append("query", query);
-        if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
-        if (counties.length > 0) params.append("counties", counties.join(","));
-        if (meetingDateFrom) params.append("meetingDateFrom", meetingDateFrom);
-        if (meetingDateTo) params.append("meetingDateTo", meetingDateTo);
-        params.append("limit", pageSize.toString());
-        params.append("offset", (page * pageSize).toString());
+        const params = createSearchParams(pageSize, page * pageSize);
         
         const response = await fetch(`/api/documents?${params.toString()}`);
         
@@ -88,16 +87,102 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated, page, user?.googleId]);
+  }, [query, selectedDocTypes, counties, topics, meetingDateFrom, meetingDateTo, isAuthenticated, page, user?.googleId]);
   
   // Reset to page 0 when filters change
   useEffect(() => {
     if (state.searchUi.page !== 0) {
       setSearchUi((prev) => ({ ...prev, page: 0 }));
     }
-  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo]);
+    setGlobalSelectCount(null);
+  }, [query, selectedDocTypes, counties, topics, meetingDateFrom, meetingDateTo, user?.googleId]);
+
+  useEffect(() => {
+    if (selectedIds.length === 0 && globalSelectCount !== null) {
+      setGlobalSelectCount(null);
+    }
+  }, [selectedIds.length, globalSelectCount]);
 
   const results = documents;
+
+  // Helper to compute "select all" state for current page (excluding items already in brief)
+  const selectableIdsOnPage = results
+    .filter((item) => !state.briefItemIds.includes(item.id))
+    .map((item) => item.id);
+  const pageSelectableSelected =
+    selectableIdsOnPage.length > 0 &&
+    selectableIdsOnPage.every((id) => selectedIds.includes(id));
+  const allResultsSelected =
+    globalSelectCount !== null &&
+    globalSelectCount > 0 &&
+    selectedIds.length >= globalSelectCount;
+
+  function createSearchParams(limitValue: number, offsetValue: number) {
+    const params = new URLSearchParams();
+    if (user?.googleId) params.append("googleId", user.googleId);
+    if (query) params.append("query", query);
+    if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
+    if (counties.length > 0) params.append("counties", counties.join(","));
+    if (topics.length > 0) params.append("topics", topics.join(","));
+    if (meetingDateFrom) params.append("meetingDateFrom", meetingDateFrom);
+    if (meetingDateTo) params.append("meetingDateTo", meetingDateTo);
+    params.append("limit", limitValue.toString());
+    params.append("offset", offsetValue.toString());
+    return params;
+  }
+
+  async function handleSelectAllResults() {
+    if (selectingAll) return;
+    if (allResultsSelected) {
+      setSearchUi((prev) => ({ ...prev, selectedIds: [] }));
+      setGlobalSelectCount(null);
+      return;
+    }
+
+    setSelectingAll(true);
+    try {
+      const limit = 100; // max allowed by API
+      let offset = 0;
+      let hasMore = true;
+      const collected = new Set<string>();
+      let lastTotal = total;
+
+      while (hasMore) {
+        const params = createSearchParams(limit, offset);
+        const response = await fetch(`/api/documents?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error(`API request failed while selecting all: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const batch: FeedItem[] = data.documents || [];
+        batch.forEach((doc) => {
+          if (!state.briefItemIds.includes(doc.id)) {
+            collected.add(doc.id);
+          }
+        });
+
+        const totalFromResponse = data.pagination?.total ?? batch.length;
+        lastTotal = totalFromResponse;
+        offset += limit;
+        hasMore = offset < totalFromResponse && batch.length > 0;
+      }
+
+      if (collected.size === 0 && lastTotal > 0) {
+        console.warn("All documents matching filters are already in the brief; nothing to select.");
+      }
+
+      setSearchUi((prev) => ({
+        ...prev,
+        selectedIds: Array.from(collected),
+      }));
+      setGlobalSelectCount(collected.size || null);
+    } catch (err) {
+      console.error("Error selecting all documents:", err);
+    } finally {
+      setSelectingAll(false);
+    }
+  }
 
   if (!isAuthenticated) {
     return (
@@ -123,7 +208,8 @@ export default function SearchPage() {
       <div className="px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto">
         <h1 className="text-2xl font-semibold tracking-tight text-[--color-foreground]">Search</h1>
         <div className="mt-6 grid lg:grid-cols-4 gap-6">
-          <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-8 lg:h-fit">
+          <aside className="lg:col-span-1 lg:sticky lg:top-8">
+            <div className="space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1 lg:pr-2">
           {/* Button shown in sidebar on desktop only */}
           <div className="hidden lg:block">
             <Button
@@ -233,6 +319,22 @@ export default function SearchPage() {
               </div>
             </div>
           </Card>
+          <Card>
+            <div className="text-sm font-medium">Topics</div>
+            <div className="mt-2">
+              <TopicPicker
+                selected={topics}
+                onChange={(nextTopics) =>
+                  setSearchUi((prev) => ({
+                    ...prev,
+                    topics: nextTopics,
+                  }))
+                }
+                placeholder="Search or add topics..."
+              />
+            </div>
+          </Card>
+            </div>
         </aside>
         <section className="lg:col-span-3">
           {/* Button shown above results on mobile only */}
@@ -265,7 +367,27 @@ export default function SearchPage() {
           {!loading && !error && results.length > 0 && (
             <div className="hidden lg:block rounded-[--radius-lg] border border-white/10 bg-surface/60 backdrop-blur overflow-hidden">
               <div className="grid grid-cols-12 bg-surface-2/60 text-[13px] font-medium text-[--color-foreground] border-b border-white/10">
-                <div className="col-span-1 px-4 py-3 flex items-center">Select</div>
+                <div className="col-span-1 px-4 py-3 flex flex-col gap-1">
+                  <label className="flex items-center gap-2 text-[13px] font-medium text-[--color-foreground]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[--color-brand-600] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      checked={allResultsSelected}
+                      onChange={handleSelectAllResults}
+                      disabled={total === 0 || selectingAll}
+                      aria-label="Select all results"
+                    />
+                    <span>Select All</span>
+                  </label>
+                  {selectingAll && (
+                    <span className="text-[10px] uppercase tracking-wide text-[--color-muted]">
+                      Gathering results...
+                    </span>
+                  )}
+                  {!allResultsSelected && !selectingAll && pageSelectableSelected && (
+                    <span className="text-[10px] text-[--color-muted]">Page selected</span>
+                  )}
+                </div>
                 <div className="col-span-4 px-4 py-3 flex items-center">Title</div>
                 <div className="col-span-2 px-4 py-3 flex items-center">Jurisdiction</div>
                 <div className="col-span-1 px-4 py-3 flex items-center">Docs</div>

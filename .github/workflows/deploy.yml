@@ -44,6 +44,9 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Install GKE auth plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
+
       - name: Configure Docker for Artifact Registry
         run: |
           # Configure Docker to use gcloud as credential helper for Artifact Registry
@@ -120,6 +123,15 @@ jobs:
       - name: Install Pulumi dependencies
         working-directory: infrastructure
         run: npm ci
+
+      - name: Configure kubectl for GKE
+        run: |
+          # Configure kubectl to use the GKE cluster (this sets up the auth plugin)
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --project ${{ env.GCP_PROJECT }}
+          # Verify kubectl can connect
+          kubectl cluster-info || echo "Warning: kubectl cluster-info failed, but continuing..."
 
       - name: Configure Pulumi
         working-directory: infrastructure

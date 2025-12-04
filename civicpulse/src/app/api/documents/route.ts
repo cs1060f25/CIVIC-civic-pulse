@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     
     // Parse query parameters
+    const googleId = searchParams.get("googleId");
     const query = searchParams.get("query") || "";
     const docTypes = searchParams.get("docTypes")?.split(",").filter(Boolean) || [];
     const counties = searchParams.get("counties")?.split(",").filter(Boolean) || [];
@@ -61,19 +62,28 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Build query
+    // Build query with user-specific metadata join if googleId is provided
     let sql = `
       SELECT 
         d.id, d.source_id, d.file_url, d.content_hash, d.bytes_size, d.created_at,
         m.title, m.entity, m.jurisdiction, m.counties, m.meeting_date, m.doc_types,
-        m.impact, m.stage, m.topics, m.keyword_hits, m.extracted_text, m.pdf_preview,
+        COALESCE(um.impact, m.impact) as impact,
+        COALESCE(um.stage, m.stage) as stage,
+        COALESCE(um.topics, m.topics) as topics,
+        m.keyword_hits, m.extracted_text, m.pdf_preview,
         m.summary, m.full_text, m.attachments, m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
+      ${googleId ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
       WHERE 1=1
     `;
     
     const params: (string | number)[] = [];
+    
+    // Add googleId to params if provided (must be first for the LEFT JOIN)
+    if (googleId) {
+      params.push(googleId);
+    }
     
     // Text search
     if (query) {
@@ -101,23 +111,23 @@ export async function GET(request: NextRequest) {
       counties.forEach(c => params.push(`%"${c}"%`));
     }
     
-    // Impact filter
+    // Impact filter (use COALESCE to check both user and global metadata)
     if (impact.length > 0) {
       const impactPlaceholders = impact.map(() => "?").join(",");
-      sql += ` AND m.impact IN (${impactPlaceholders})`;
+      sql += ` AND COALESCE(um.impact, m.impact) IN (${impactPlaceholders})`;
       params.push(...impact);
     }
     
-    // Stage filter
+    // Stage filter (use COALESCE to check both user and global metadata)
     if (stage.length > 0) {
       const stagePlaceholders = stage.map(() => "?").join(",");
-      sql += ` AND m.stage IN (${stagePlaceholders})`;
+      sql += ` AND COALESCE(um.stage, m.stage) IN (${stagePlaceholders})`;
       params.push(...stage);
     }
     
-    // Topics filter
+    // Topics filter (use COALESCE to check both user and global metadata)
     if (topics.length > 0) {
-      const topicConditions = topics.map(() => "m.topics LIKE ?").join(" OR ");
+      const topicConditions = topics.map(() => "COALESCE(um.topics, m.topics) LIKE ?").join(" OR ");
       sql += ` AND (${topicConditions})`;
       topics.forEach(t => params.push(`%"${t}"%`));
     }
@@ -139,14 +149,15 @@ export async function GET(request: NextRequest) {
     }
     
     // Count total (before pagination)
-    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, "SELECT COUNT(*) as total FROM");
-    const countResult = db.prepare(countSql).get(...params) as { total: number };
+    // Remove ORDER BY, LIMIT, and OFFSET from count query
+    const countSql = sql.replace(/ORDER BY[\s\S]*$/, "").replace(/SELECT[\s\S]*?FROM/, "SELECT COUNT(*) as total FROM");
+    const countResult = db.prepare(countSql).get(...params.slice(0, params.length - 2)) as { total: number };
     const total = countResult?.total || 0;
     
-    // Sorting
+    // Sorting (use COALESCE for impact to sort by user-specific value if available)
     const sortColumn = sortBy === "meetingDate" ? "m.meeting_date" :
                        sortBy === "createdAt" ? "d.created_at" :
-                       sortBy === "impact" ? "m.impact" :
+                       sortBy === "impact" ? "COALESCE(um.impact, m.impact)" :
                        sortBy === "title" ? "m.title" : "m.meeting_date";
     const order = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
     sql += ` ORDER BY ${sortColumn} ${order}`;

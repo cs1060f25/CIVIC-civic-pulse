@@ -17,6 +17,9 @@ export async function GET(
       );
     }
 
+    // Get googleId from query parameter if provided
+    const googleId = request.nextUrl.searchParams.get("googleId");
+
     let db;
     try {
       db = getDb();
@@ -31,6 +34,7 @@ export async function GET(
       );
     }
     
+    // Join user_document_metadata if googleId is provided
     const query = `
       SELECT 
         d.id,
@@ -45,9 +49,9 @@ export async function GET(
         m.counties,
         m.meeting_date,
         m.doc_types,
-        m.impact,
-        m.stage,
-        m.topics,
+        COALESCE(um.impact, m.impact) as impact,
+        COALESCE(um.stage, m.stage) as stage,
+        COALESCE(um.topics, m.topics) as topics,
         m.keyword_hits,
         m.extracted_text,
         m.pdf_preview,
@@ -57,10 +61,13 @@ export async function GET(
         m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
+      ${googleId ? "LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?" : ""}
       WHERE d.id = ?
     `;
 
-    const row = db.prepare(query).get(id) as DocumentRow | undefined;
+    const row = googleId 
+      ? db.prepare(query).get(googleId, id) as DocumentRow | undefined
+      : db.prepare(query).get(id) as DocumentRow | undefined;
 
     if (!row) {
       return NextResponse.json(
@@ -98,10 +105,19 @@ export async function PATCH(
 
     const body = await request.json();
     const {
+      googleId,
       impact,
       stage,
       topics,
     } = body;
+
+    // Require googleId for user-specific metadata updates
+    if (!googleId) {
+      return NextResponse.json(
+        { error: "googleId is required for metadata updates" },
+        { status: 400 }
+      );
+    }
 
     let db;
     try {
@@ -117,44 +133,34 @@ export async function PATCH(
       );
     }
 
-    // Build update query dynamically based on provided fields
-    const updates: string[] = [];
-    const values: unknown[] = [];
+    // Check if user metadata already exists to preserve values for fields not being updated
+    const existing = db
+      .prepare("SELECT impact, stage, topics FROM user_document_metadata WHERE user_google_id = ? AND document_id = ?")
+      .get(googleId, id) as { impact: string | null; stage: string | null; topics: string | null } | undefined;
 
-    if (impact !== undefined) {
-      updates.push("impact = ?");
-      values.push(impact === null || impact === "" ? null : impact);
-    }
+    // Use provided values, or keep existing values, or NULL for new records
+    const finalImpact = impact !== undefined 
+      ? (impact === null || impact === "" ? null : impact)
+      : (existing?.impact ?? null);
+    
+    const finalStage = stage !== undefined
+      ? (stage === null || stage === "" ? null : stage)
+      : (existing?.stage ?? null);
+    
+    const finalTopics = topics !== undefined
+      ? JSON.stringify(topics)
+      : (existing?.topics ?? null);
 
-    if (stage !== undefined) {
-      updates.push("stage = ?");
-      values.push(stage === null || stage === "" ? null : stage);
-    }
-
-    if (topics !== undefined) {
-      updates.push("topics = ?");
-      values.push(JSON.stringify(topics));
-    }
-
-    if (updates.length === 0) {
-      return NextResponse.json(
-        { error: "No fields to update" },
-        { status: 400 }
-      );
-    }
-
-    updates.push("updated_at = datetime('now')");
-    values.push(id);
-
-    const updateQuery = `
-      UPDATE document_metadata
-      SET ${updates.join(", ")}
-      WHERE document_id = ?
+    // Use INSERT OR REPLACE to handle both new and existing records
+    const insertQuery = `
+      INSERT OR REPLACE INTO user_document_metadata 
+        (user_google_id, document_id, impact, stage, topics, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
     `;
 
-    db.prepare(updateQuery).run(...values);
+    db.prepare(insertQuery).run(googleId, id, finalImpact, finalStage, finalTopics);
 
-    // Fetch and return updated document
+    // Fetch and return updated document with user-specific metadata
     const selectQuery = `
       SELECT 
         d.id,
@@ -169,9 +175,9 @@ export async function PATCH(
         m.counties,
         m.meeting_date,
         m.doc_types,
-        m.impact,
-        m.stage,
-        m.topics,
+        COALESCE(um.impact, m.impact) as impact,
+        COALESCE(um.stage, m.stage) as stage,
+        COALESCE(um.topics, m.topics) as topics,
         m.keyword_hits,
         m.extracted_text,
         m.pdf_preview,
@@ -181,10 +187,11 @@ export async function PATCH(
         m.updated_at
       FROM documents d
       LEFT JOIN document_metadata m ON d.id = m.document_id
+      LEFT JOIN user_document_metadata um ON d.id = um.document_id AND um.user_google_id = ?
       WHERE d.id = ?
     `;
 
-    const row = db.prepare(selectQuery).get(id) as DocumentRow | undefined;
+    const row = db.prepare(selectQuery).get(googleId, id) as DocumentRow | undefined;
 
     if (!row) {
       return NextResponse.json(

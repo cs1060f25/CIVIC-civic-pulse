@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button, Card, Badge } from "@app/components/ui";
 import { useAppState } from "@app/lib/state";
 import { formatTopicLabel } from "@app/lib/format";
+import { useAuth } from "@app/auth/AuthContext";
 
 // Standard topics from the system
 const STANDARD_TOPICS = [
@@ -33,6 +34,7 @@ const STAGE_OPTIONS = ["Work Session", "Hearing", "Vote", "Adopted", "Draft"];
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const { state, addToBrief, removeFromBrief } = useAppState();
+  const { user } = useAuth();
   const [item, setItem] = useState<FeedItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,11 @@ export default function ItemDetailPage() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/documents/${params.id}`);
+        // Include googleId in query if user is authenticated
+        const url = user?.googleId 
+          ? `/api/documents/${params.id}?googleId=${encodeURIComponent(user.googleId)}`
+          : `/api/documents/${params.id}`;
+        const response = await fetch(url);
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -78,10 +84,16 @@ export default function ItemDetailPage() {
     if (params.id) {
       fetchDocument();
     }
-  }, [params.id]);
+  }, [params.id, user?.googleId]);
 
   const handleSave = async () => {
     if (!item) return;
+    
+    // Require user to be authenticated to save metadata
+    if (!user?.googleId) {
+      alert("Please log in to save document metadata.");
+      return;
+    }
     
     setSaving(true);
     try {
@@ -89,6 +101,7 @@ export default function ItemDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          googleId: user.googleId,
           impact: editingImpact,
           stage: editingStage || null,
           topics: editingTopics,

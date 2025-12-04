@@ -101,3 +101,28 @@ CREATE INDEX IF NOT EXISTS idx_metadata_meeting_date ON document_metadata(meetin
 CREATE INDEX IF NOT EXISTS idx_metadata_impact ON document_metadata(impact);
 CREATE INDEX IF NOT EXISTS idx_metadata_entity ON document_metadata(entity);
 CREATE INDEX IF NOT EXISTS idx_metadata_jurisdiction ON document_metadata(jurisdiction);
+
+-- User-specific document metadata for user annotations (impact, stage, topics)
+-- This allows each user to have their own annotations without affecting other users
+CREATE TABLE IF NOT EXISTS user_document_metadata (
+    user_google_id TEXT NOT NULL,
+    document_id TEXT NOT NULL,
+    
+    -- User-specific annotations
+    impact TEXT,                              -- "Low" | "Medium" | "High" | NULL
+    stage TEXT,                               -- "Work Session" | "Hearing" | "Vote" | "Adopted" | "Draft"
+    topics TEXT,                              -- JSON array of user-selected topics
+    
+    -- Timestamps
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    
+    PRIMARY KEY (user_google_id, document_id),
+    FOREIGN KEY (user_google_id) REFERENCES users(google_id) ON DELETE CASCADE,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+-- Indexes for user document metadata queries
+CREATE INDEX IF NOT EXISTS idx_user_metadata_user_id ON user_document_metadata(user_google_id);
+CREATE INDEX IF NOT EXISTS idx_user_metadata_document_id ON user_document_metadata(document_id);
+CREATE INDEX IF NOT EXISTS idx_user_metadata_impact ON user_document_metadata(impact);

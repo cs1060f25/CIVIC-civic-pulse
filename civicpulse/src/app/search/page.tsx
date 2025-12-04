@@ -15,7 +15,7 @@ const allDocTypes: DocumentType[] = ["Agenda", "Minutes", "Staff Memo", "Ordinan
 
 export default function SearchPage() {
   const { state, addToBrief, setSearchUi } = useAppState();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [documents, setDocuments] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +61,7 @@ export default function SearchPage() {
       
       try {
         const params = new URLSearchParams();
+        if (user?.googleId) params.append("googleId", user.googleId);
         if (query) params.append("query", query);
         if (selectedDocTypes.length > 0) params.append("docTypes", selectedDocTypes.join(","));
         if (counties.length > 0) params.append("counties", counties.join(","));
@@ -87,7 +88,7 @@ export default function SearchPage() {
     }
     
     fetchDocuments();
-  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated, page]);
+  }, [query, selectedDocTypes, counties, meetingDateFrom, meetingDateTo, isAuthenticated, page, user?.googleId]);
   
   // Reset to page 0 when filters change
   useEffect(() => {

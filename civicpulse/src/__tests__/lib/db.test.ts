@@ -257,7 +257,11 @@ describe('Database Module', () => {
       const customPath = '/custom/path/to/db.sqlite';
       const resolved = path.resolve(customPath);
       
-      expect(resolved).toBe(customPath);
+      // On Windows, path.resolve() converts Unix-style paths to Windows paths
+      // So we check that it's an absolute path rather than exact string match
+      expect(path.isAbsolute(resolved)).toBe(true);
+      // Also verify it ends with the expected filename
+      expect(resolved).toMatch(/[\\/]db\.sqlite$/);
     });
 
     it('should check file existence correctly', () => {

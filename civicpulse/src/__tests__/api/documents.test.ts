@@ -9,7 +9,9 @@
  */
 
 import Database from 'better-sqlite3';
+import { NextRequest } from 'next/server';
 import { transformRow, DocumentRow } from '@app/lib/document-utils';
+import { GET } from '@app/api/documents/route';
 
 // Mock the database module
 let mockDb: Database.Database;
@@ -451,6 +453,116 @@ describe('Document Transformation', () => {
     expect(transformed.hits).toEqual({ keyword1: 3, keyword2: 5 });
     expect(transformed.attachments).toHaveLength(1);
     expect(transformed.attachments[0]).toHaveProperty('filename', 'attach.pdf');
+  });
+});
+
+describe('Documents API Integration', () => {
+  beforeEach(() => {
+    // Create fresh in-memory database for each test
+    mockDb = new Database(':memory:');
+    mockDb.pragma('foreign_keys = ON');
+    
+    // Apply schema (matching production schema.sql)
+    mockDb.exec(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        source_id TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        bytes_size INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash 
+        ON documents(content_hash);
+
+      CREATE TABLE IF NOT EXISTS document_metadata (
+        document_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        entity TEXT NOT NULL,
+        jurisdiction TEXT NOT NULL,
+        counties TEXT NOT NULL DEFAULT '[]',
+        meeting_date TEXT,
+        doc_types TEXT NOT NULL DEFAULT '[]',
+        topics TEXT NOT NULL DEFAULT '[]',
+        impact TEXT NOT NULL DEFAULT 'Low',
+        stage TEXT,
+        keyword_hits TEXT DEFAULT '{}',
+        extracted_text TEXT DEFAULT '[]',
+        pdf_preview TEXT DEFAULT '[]',
+        summary TEXT,
+        full_text TEXT,
+        attachments TEXT DEFAULT '[]',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+      );
+    `);
+  });
+
+  afterEach(() => {
+    if (mockDb && mockDb.open) {
+      mockDb.close();
+    }
+  });
+
+  it('should call GET handler and return documents with pagination', async () => {
+    // Seed database with test document
+    const insertDoc = mockDb.prepare(`
+      INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMeta = mockDb.prepare(`
+      INSERT INTO document_metadata (
+        document_id, title, entity, jurisdiction, counties, meeting_date,
+        doc_types, topics, impact, stage, keyword_hits
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insertDoc.run('integration-test-doc', 'test-source', 'http://example.com/test.pdf', 'test-hash', 1000, '2025-01-15T00:00:00Z');
+    insertMeta.run(
+      'integration-test-doc',
+      'Integration Test Document',
+      'Test City Council',
+      'Test City, KS',
+      '["Test County"]',
+      '2025-01-15',
+      '["Agenda"]',
+      '["zoning"]',
+      'High',
+      'Hearing',
+      '{"zoning": 5}'
+    );
+
+    // Create NextRequest with search params
+    const url = new URL('http://localhost:3000/api/documents');
+    url.searchParams.set('limit', '10');
+    url.searchParams.set('offset', '0');
+    const request = new NextRequest(url);
+
+    // Call the GET handler
+    const response = await GET(request);
+    const data = await response.json();
+
+    // Assert response structure
+    expect(response.status).toBe(200);
+    expect(data).toHaveProperty('documents');
+    expect(data).toHaveProperty('pagination');
+    expect(Array.isArray(data.documents)).toBe(true);
+    expect(data.pagination).toHaveProperty('total');
+    expect(data.pagination).toHaveProperty('limit');
+    expect(data.pagination).toHaveProperty('offset');
+    expect(data.pagination).toHaveProperty('hasMore');
+
+    // Assert test document appears in response
+    expect(data.documents.length).toBeGreaterThan(0);
+    const testDoc = data.documents.find((doc: { id: string }) => doc.id === 'integration-test-doc');
+    expect(testDoc).toBeDefined();
+    expect(testDoc.title).toBe('Integration Test Document');
+    expect(testDoc.entity).toBe('Test City Council');
+    expect(testDoc.counties).toEqual(['Test County']);
+    expect(testDoc.docTypes).toEqual(['Agenda']);
+    expect(testDoc.impact).toBe('High');
   });
 });
 

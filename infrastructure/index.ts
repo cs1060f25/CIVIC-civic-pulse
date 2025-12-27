@@ -39,7 +39,9 @@ const subnetwork = new gcp.compute.Subnetwork("civicpulse-subnetwork", {
 
 // Create GKE cluster with 1 node and 16GB memory
 // Using e2-standard-4: 4 vCPU, 16GB RAM
-const cluster = new gcp.container.Cluster(clusterName, {
+const cluster = new gcp.container.Cluster(
+    clusterName,
+    {
     name: clusterName,
     // Zonal cluster: this ensures initialNodeCount is the total number of nodes.
     location: zone,
@@ -62,7 +64,11 @@ const cluster = new gcp.container.Cluster(clusterName, {
     enableLegacyAbac: false,
     network: network.name,
     subnetwork: subnetwork.name,
-});
+    },
+    {
+        ignoreChanges: ["nodeConfig"],
+    }
+);
 
 // Build kubeconfig manually because the classic kubeconfigRaw helper was removed
 const clusterKubeconfig = pulumi
@@ -239,7 +245,14 @@ const frontendDeployment = new k8s.apps.v1.Deployment(
             },
         },
         spec: {
-            replicas: 2,
+            replicas: 1,
+            strategy: {
+                type: "RollingUpdate",
+                rollingUpdate: {
+                    maxSurge: 0,
+                    maxUnavailable: 1,
+                },
+            },
             selector: {
                 matchLabels: {
                     app: "frontend",
@@ -255,16 +268,22 @@ const frontendDeployment = new k8s.apps.v1.Deployment(
                     initContainers: [
                         {
                             name: "fix-db-permissions",
-                            image: "busybox:latest",
+                            image: "keinos/sqlite3:latest",
                             command: [
                                 "sh",
                                 "-c",
-                                "chmod 777 /app/backend/db && chmod 666 /app/backend/db/civicpulse.db 2>/dev/null || true",
+                                "set -e; mkdir -p /app/backend/db; if [ ! -f /app/backend/db/civicpulse.db ]; then echo 'Initializing civicpulse.db'; sqlite3 /app/backend/db/civicpulse.db < /run/config/schema.sql; fi; chmod 777 /app/backend/db || true; chmod 666 /app/backend/db/civicpulse.db || true",
                             ],
                             volumeMounts: [
                                 {
                                     name: "backend-db",
                                     mountPath: "/app/backend/db",
+                                },
+                                {
+                                    name: "backend-files",
+                                    mountPath: "/run/config/schema.sql",
+                                    readOnly: true,
+                                    subPath: "schema.sql",
                                 },
                             ],
                         },
@@ -327,6 +346,12 @@ const frontendDeployment = new k8s.apps.v1.Deployment(
                             name: "backend-db",
                             persistentVolumeClaim: {
                                 claimName: backendDbPvc.metadata.name,
+                            },
+                        },
+                        {
+                            name: "backend-files",
+                            configMap: {
+                                name: backendFilesConfigMap.metadata.name,
                             },
                         },
                     ],

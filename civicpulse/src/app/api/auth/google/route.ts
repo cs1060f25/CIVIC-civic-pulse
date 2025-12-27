@@ -21,6 +21,19 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
+    const nonPersistentUserResponse = () =>
+      NextResponse.json({
+        user: {
+          googleId,
+          email,
+          name,
+          picture: picture ?? null,
+          createdAt: now,
+          updatedAt: now,
+          savedState: normalizeAppState(DEFAULT_APP_STATE),
+        },
+      });
+
     let db;
     try {
       db = getDb();
@@ -44,6 +57,76 @@ export async function POST(request: NextRequest) {
       );
 
       // Fall back to non-persistent auth: return a user object so the UI can still log in
+      return nonPersistentUserResponse();
+    }
+
+    try {
+      const existing = db
+        .prepare(
+          `
+          SELECT google_id as googleId, email, name, picture, saved_state as savedState, created_at as createdAt, updated_at as updatedAt
+          FROM users
+          WHERE google_id = ?
+        `
+        )
+        .get(googleId) as
+        | {
+            googleId: string;
+            email: string;
+            name: string;
+            picture?: string;
+            savedState?: string;
+            createdAt?: string;
+            updatedAt?: string;
+          }
+        | undefined;
+
+      if (existing) {
+        db.prepare(
+          `
+            UPDATE users
+            SET email = ?, name = ?, picture = ?, updated_at = ?
+            WHERE google_id = ?
+          `
+        ).run(email, name, picture ?? null, now, googleId);
+
+        let savedState = normalizeAppState(DEFAULT_APP_STATE);
+        if (existing.savedState) {
+          try {
+            savedState = normalizeAppState(JSON.parse(existing.savedState));
+          } catch {
+            savedState = normalizeAppState(DEFAULT_APP_STATE);
+          }
+        }
+
+        const responseUser = {
+          googleId,
+          email,
+          name,
+          picture: picture ?? existing.picture ?? null,
+          createdAt: existing.createdAt,
+          updatedAt: now,
+          savedState,
+        };
+
+        return NextResponse.json({ user: responseUser });
+      }
+
+      db.prepare(
+        `
+          INSERT INTO users (google_id, email, name, picture, saved_state, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `
+      ).run(
+        googleId,
+        email,
+        name,
+        picture ?? null,
+        JSON.stringify(DEFAULT_APP_STATE),
+        now,
+        now
+      );
+
       return NextResponse.json({
         user: {
           googleId,
@@ -55,77 +138,13 @@ export async function POST(request: NextRequest) {
           savedState: normalizeAppState(DEFAULT_APP_STATE),
         },
       });
+    } catch (err) {
+      console.error(
+        "Database persistence failed during Google auth, proceeding without persistence:",
+        err
+      );
+      return nonPersistentUserResponse();
     }
-
-    const existing = db
-      .prepare(
-        `
-        SELECT google_id as googleId, email, name, picture, saved_state as savedState, created_at as createdAt, updated_at as updatedAt
-        FROM users
-        WHERE google_id = ?
-      `
-      )
-      .get(googleId) as
-      | {
-          googleId: string;
-          email: string;
-          name: string;
-          picture?: string;
-          savedState?: string;
-          createdAt?: string;
-          updatedAt?: string;
-        }
-      | undefined;
-
-    if (existing) {
-      db.prepare(
-        `
-          UPDATE users
-          SET email = ?, name = ?, picture = ?, updated_at = ?
-          WHERE google_id = ?
-        `
-      ).run(email, name, picture ?? null, now, googleId);
-
-      let savedState = normalizeAppState(DEFAULT_APP_STATE);
-      if (existing.savedState) {
-        try {
-          savedState = normalizeAppState(JSON.parse(existing.savedState));
-        } catch {
-          savedState = normalizeAppState(DEFAULT_APP_STATE);
-        }
-      }
-
-      const responseUser = {
-        googleId,
-        email,
-        name,
-        picture: picture ?? existing.picture ?? null,
-        createdAt: existing.createdAt,
-        updatedAt: now,
-        savedState,
-      };
-
-      return NextResponse.json({ user: responseUser });
-    }
-
-    db.prepare(
-      `
-        INSERT INTO users (google_id, email, name, picture, saved_state, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `
-    ).run(googleId, email, name, picture ?? null, JSON.stringify(DEFAULT_APP_STATE), now, now);
-
-    return NextResponse.json({
-      user: {
-        googleId,
-        email,
-        name,
-        picture: picture ?? null,
-        createdAt: now,
-        updatedAt: now,
-        savedState: normalizeAppState(DEFAULT_APP_STATE),
-      },
-    });
   } catch (error) {
     console.error("Error handling Google auth:", error);
     return NextResponse.json(

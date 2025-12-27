@@ -128,10 +128,10 @@ describe('transformRow', () => {
     expect(result.docTypes).toEqual([]);
   });
 
-  it('should handle null impact with default "Low"', () => {
+  it('should handle null impact as null', () => {
     const row = createMockRow({ impact: null });
     const result = transformRow(row);
-    expect(result.impact).toBe('Low');
+    expect(result.impact).toBeNull();
   });
 
   it('should handle null stage with undefined', () => {
@@ -190,7 +190,7 @@ describe('transformRow', () => {
     expect(result.counties).toEqual([]);
     expect(result.meetingDate).toBeNull();
     expect(result.docTypes).toEqual([]);
-    expect(result.impact).toBe('Low');
+    expect(result.impact).toBeNull();
     expect(result.stage).toBeUndefined();
     expect(result.topics).toEqual([]);
     expect(result.hits).toEqual({});

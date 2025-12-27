@@ -6,6 +6,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { GET } from '@app/api/counties/route';
 
 // Mock the database module
 let mockDb: Database.Database;
@@ -398,6 +399,87 @@ describe('Counties API', () => {
       const rows = stmt.all(`%"${county}"%`) as { id: string; title: string }[];
       
       expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe('Counties API Integration', () => {
+    beforeEach(() => {
+      // Create fresh in-memory database for each test
+      mockDb = new Database(':memory:');
+      
+      // Apply schema
+      mockDb.exec(`
+        CREATE TABLE IF NOT EXISTS documents (
+          id TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          file_url TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          bytes_size INTEGER NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS document_metadata (
+          document_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          entity TEXT NOT NULL,
+          jurisdiction TEXT NOT NULL,
+          counties TEXT NOT NULL DEFAULT '[]',
+          meeting_date TEXT,
+          doc_types TEXT NOT NULL DEFAULT '[]',
+          topics TEXT NOT NULL DEFAULT '[]',
+          impact TEXT NOT NULL DEFAULT 'Low',
+          stage TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        );
+      `);
+    });
+
+    afterEach(() => {
+      if (mockDb && mockDb.open) {
+        mockDb.close();
+      }
+    });
+
+    it('should call GET handler and return counties array', async () => {
+      // Seed database with test documents containing county data
+      mockDb.exec(`
+        INSERT INTO documents (id, source_id, file_url, content_hash, bytes_size)
+        VALUES 
+          ('doc-1', 'source-1', 'url1', 'hash1', 100),
+          ('doc-2', 'source-1', 'url2', 'hash2', 100),
+          ('doc-3', 'source-1', 'url3', 'hash3', 100);
+        
+        INSERT INTO document_metadata (document_id, title, entity, jurisdiction, counties)
+        VALUES 
+          ('doc-1', 'Title 1', 'Entity 1', 'Jurisdiction 1', '["Sedgwick County"]'),
+          ('doc-2', 'Title 2', 'Entity 2', 'Jurisdiction 2', '["Johnson County", "Douglas County"]'),
+          ('doc-3', 'Title 3', 'Entity 3', 'Jurisdiction 3', '["Sedgwick County"]');
+      `);
+
+      // Call the GET handler
+      const response = await GET();
+      const data = await response.json();
+
+      // Assert response structure
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty('counties');
+      expect(Array.isArray(data.counties)).toBe(true);
+
+      // Assert known test counties appear in response
+      expect(data.counties).toContain('Sedgwick County');
+      expect(data.counties).toContain('Johnson County');
+      expect(data.counties).toContain('Douglas County');
+
+      // Assert counties are sorted alphabetically
+      const sortedCounties = [...data.counties].sort((a, b) => 
+        a.toLowerCase().localeCompare(b.toLowerCase())
+      );
+      expect(data.counties).toEqual(sortedCounties);
+
+      // Assert no duplicates
+      const uniqueCounties = new Set(data.counties);
+      expect(data.counties.length).toBe(uniqueCounties.size);
     });
   });
 });

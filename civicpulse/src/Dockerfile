@@ -1,8 +1,12 @@
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package.json package-lock.json* ./
@@ -56,6 +60,8 @@ RUN adduser --system --uid 1001 nextjs
 # Next.js standalone output includes everything needed
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Copy public directory (Next.js doesn't include it in standalone by default)
 # Copy from root public directory where favicon.ico lives
 RUN mkdir -p ./public

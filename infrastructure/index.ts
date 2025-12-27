@@ -1,6 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as gcp from "@pulumi/gcp";
 import * as k8s from "@pulumi/kubernetes";
+import * as fs from "fs";
+import * as path from "path";
 
 // Get configuration
 // Provider-scoped GCP config lives under the "gcp" namespace (keys like "gcp:project").
@@ -21,6 +23,7 @@ const imageRegistryBase =
     `us-central1-docker.pkg.dev/${project}/civicpulse`;
 const googleClientId = appConfigNs.require("googleClientId");
 const googleApiKeySecret = appConfigNs.get("googleApiKeySecret") || "google-api-key";
+const googleApiKey = appConfigNs.requireSecret("googleApiKey");
 
 // Create or use a dedicated network and subnetwork for the cluster.
 // Some projects don't have the legacy "default" network, so we manage our own.
@@ -193,10 +196,30 @@ const googleApiKeySecretResource = new k8s.core.v1.Secret(
             namespace: namespaceName,
         },
         type: "Opaque",
-        // Note: Set actual secret value via Pulumi config or external secret management
-        // stringData: {
-        //     "google_api_key.txt": config.requireSecret("googleApiKey"),
-        // },
+        stringData: {
+            "google_api_key.txt": googleApiKey,
+        },
+    },
+    { provider: k8sProvider }
+);
+
+const backendFilesConfigMap = new k8s.core.v1.ConfigMap(
+    "backend-files",
+    {
+        metadata: {
+            name: "backend-files",
+            namespace: namespaceName,
+        },
+        data: {
+            "schema.sql": fs.readFileSync(
+                path.join(__dirname, "..", "backend", "db", "schema.sql"),
+                "utf8"
+            ),
+            "topics.csv": fs.readFileSync(
+                path.join(__dirname, "..", "backend", "data", "topics.csv"),
+                "utf8"
+            ),
+        },
     },
     { provider: k8sProvider }
 );
@@ -513,24 +536,21 @@ const ingestionDeployment = new k8s.apps.v1.Deployment(
 // Processing Deployment
 const processingImageTag = process.env.GITHUB_SHA || process.env.IMAGE_TAG || "latest";
 const processingImage = `${imageRegistryBase}/civicpulse-processing:${processingImageTag}`;
-const processingDeployment = new k8s.apps.v1.Deployment(
+const processingJob = new k8s.batch.v1.Job(
     "processing",
     {
         metadata: {
             name: "processing",
             namespace: namespaceName,
+            annotations: {
+                "pulumi.com/patchForce": "true",
+            },
             labels: {
                 app: "processing",
             },
         },
         spec: {
-            // Temporarily disable ingestion in this environment
-            replicas: 0,
-            selector: {
-                matchLabels: {
-                    app: "processing",
-                },
-            },
+            backoffLimit: 1,
             template: {
                 metadata: {
                     labels: {
@@ -538,6 +558,7 @@ const processingDeployment = new k8s.apps.v1.Deployment(
                     },
                 },
                 spec: {
+                    restartPolicy: "Never",
                     containers: [
                         {
                             name: "processing",
@@ -616,13 +637,16 @@ const lmParserDeployment = new k8s.apps.v1.Deployment(
         metadata: {
             name: "lm-parser",
             namespace: namespaceName,
+            annotations: {
+                "pulumi.com/patchForce": "true",
+            },
             labels: {
                 app: "lm-parser",
             },
         },
         spec: {
             // Temporarily disable processing in this environment
-            replicas: 0,
+            replicas: 1,
             selector: {
                 matchLabels: {
                     app: "lm-parser",
@@ -677,6 +701,18 @@ const lmParserDeployment = new k8s.apps.v1.Deployment(
                                     mountPath: "/app/backend/db",
                                 },
                                 {
+                                    name: "backend-files",
+                                    mountPath: "/app/backend/db/schema.sql",
+                                    readOnly: true,
+                                    subPath: "schema.sql",
+                                },
+                                {
+                                    name: "backend-files",
+                                    mountPath: "/app/backend/data/topics.csv",
+                                    readOnly: true,
+                                    subPath: "topics.csv",
+                                },
+                                {
                                     name: "google-api-key",
                                     mountPath: "/run/secrets/google_api_key.txt",
                                     readOnly: true,
@@ -712,6 +748,12 @@ const lmParserDeployment = new k8s.apps.v1.Deployment(
                             name: "backend-db",
                             persistentVolumeClaim: {
                                 claimName: backendDbPvc.metadata.name,
+                            },
+                        },
+                        {
+                            name: "backend-files",
+                            configMap: {
+                                name: backendFilesConfigMap.metadata.name,
                             },
                         },
                         {

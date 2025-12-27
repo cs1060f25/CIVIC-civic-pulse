@@ -66,7 +66,21 @@ function GoogleLoginSetup({
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to persist user (${response.status})`);
+          let details = "";
+          try {
+            const contentType = response.headers.get("content-type") ?? "";
+            if (contentType.includes("application/json")) {
+              details = JSON.stringify(await response.json());
+            } else {
+              details = await response.text();
+            }
+          } catch {
+            details = "";
+          }
+
+          throw new Error(
+            `Failed to persist user (${response.status})${details ? `: ${details}` : ""}`
+          );
         }
 
         const data = await response.json();

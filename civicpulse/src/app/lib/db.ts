@@ -1,6 +1,7 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { createRequire } from "module";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -13,6 +14,20 @@ const globalCache = globalThis as typeof globalThis & {
   __civicpulseDb: Database.Database | null | undefined;
   __civicpulseDbPath: string | undefined;
 };
+
+const require = createRequire(import.meta.url);
+
+function loadSqliteCtor(): new (path: string) => Database.Database {
+  // better-sqlite3 is a native module; loading can fail in some runtimes (serverless/edge).
+  // We load it lazily so callers can catch and gracefully degrade.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require("better-sqlite3") as unknown as {
+    default?: new (path: string) => Database.Database;
+  };
+
+  const ctor = mod.default ?? (mod as unknown as new (path: string) => Database.Database);
+  return ctor;
+}
 
 const DEFAULT_POSSIBLE_PATHS = [
   path.join(process.cwd(), "..", "backend", "db", "civicpulse.db"),
@@ -58,7 +73,7 @@ function initDb(): Database.Database {
     console.warn(
       "[civicpulse] CIVICPULSE_SKIP_DB=true – using in-memory database during build."
     );
-    globalCache.__civicpulseDb = new Database(":memory:");
+    globalCache.__civicpulseDb = new (loadSqliteCtor())(":memory:");
     return globalCache.__civicpulseDb;
   }
 
@@ -70,7 +85,8 @@ function initDb(): Database.Database {
     );
   }
 
-  const connection = new Database(dbPath);
+  const SqliteDatabase = loadSqliteCtor();
+  const connection = new SqliteDatabase(dbPath);
   connection.pragma("foreign_keys = ON");
   globalCache.__civicpulseDb = connection;
   console.info("[civicpulse] Connected to database:", dbPath);

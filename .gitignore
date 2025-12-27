@@ -69,3 +69,10 @@ Thumbs.db
 # Processing output data (should not be tracked)
 backend/processing/output/**/test_txt_files-*/
 
+# Secrets
+secrets/
+
+# Database
+backend/db/civicpulse.db
+backend/processing/output/*
+*.log

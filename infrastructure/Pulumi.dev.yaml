@@ -6,4 +6,4 @@ config:
   civicpulse:googleClientId: 1001250868106-0o3neevihvufp7nf2md52s96brp6s3s8.apps.googleusercontent.com
   civicpulse:googleApiKeySecret: google-api-key
   civicpulse:googleApiKey:
-    secure: AAABAMQtwE+bAklakCiUJaYa6xKD+kkdtTduwxCFksuKWtltIE3JnHAdgs26TZXBwt6FI7N5TbLkSMDxoB6KFuonX8EWLII=
+    secure: AAABAHxRXcWPv15W/dUemSJkRs4Xd+lzXNN2A+6U5DLTPl0XUs9BkYD9dSfjbicK96GlwGhmEdvnCiwPI5HC6UJUAEQfI1w=

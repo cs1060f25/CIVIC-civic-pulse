@@ -3,7 +3,8 @@ config:
   gcp:region: us-central1
   civicpulse:gkeClusterName: civicpulse-cluster
   civicpulse:imageRegistry: us-central1-docker.pkg.dev/civic-pulse-480006/civicpulse
-  civicpulse:googleClientId: 1001250868106-0o3neevihvufp7nf2md52s96brp6s3s8.apps.googleusercontent.com
+  civicpulse:googleClientId:
+    secure: AAABAFASxSVAThFr8m/aXshGRFHRMmDJU+nbbswjDPWE9bKcOfPP68Qnx1ffI7xwIiguqIBl0hKYO9SIl5mduA9GG7Jp3z2qI3NJ4+tcOv3mPGtMq5u3oJ1gztJ9wqUc0jPdddqMvXXQ
   civicpulse:googleApiKeySecret: google-api-key
   civicpulse:googleApiKey:
     secure: AAABAHxRXcWPv15W/dUemSJkRs4Xd+lzXNN2A+6U5DLTPl0XUs9BkYD9dSfjbicK96GlwGhmEdvnCiwPI5HC6UJUAEQfI1w=
